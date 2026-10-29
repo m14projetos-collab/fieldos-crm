@@ -63,7 +63,8 @@ supabase/migrations/   schema, RLS, views calculadas, RPCs das ações rápidas,
 supabase/tests/        stub do auth + cenários (isolamento entre orgs, Quick Log, regra da próxima ação)
 src/lib/domain/        regras puras: score, próxima ação, transições (espelho das RPCs), cadência, ancoragem, "Hoje"
 src/lib/data/          Repo (demo | Supabase), cache TanStack Query com mutação otimista
-src/components/        Hoje, Quick Log, Gaveta 360º, Command Palette, diálogos, shell
+src/lib/domain/        + pipeline.ts (Kanban/rotas), geo.ts (otimizador), chave.ts (ICP/auditoria), performance.ts (metas/funil)
+src/components/        Hoje, CRM, Rotas, CHAVE, Performance, Quick Log, Gaveta 360º, Command Palette, diálogos, shell
 ```
 
 ## Regras que o sistema garante
@@ -71,3 +72,4 @@ src/components/        Hoje, Quick Log, Gaveta 360º, Command Palette, diálogos
 - Dados cadastrais e geográficos só em `accounts`. Visitas, rotas e pipeline leem por relação.
 - `follow_ups` é a única fonte de próxima ação. Conta em negociação ativa não fica sem follow-up pendente.
 - Metas, KPIs e alertas são calculados dos registros; nada de número digitado.
+- Uma oportunidade aberta por conta; fechar exige MRR, perder exige motivo; uma rota por vendedor por dia.

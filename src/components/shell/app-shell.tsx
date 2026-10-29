@@ -19,7 +19,7 @@ const NAV = [
   { href: "/crm", label: "CRM", icon: KanbanSquare, ready: true },
   { href: "/rotas", label: "Rotas", icon: MapIcon, ready: true },
   { href: "/chave", label: "CHAVE", icon: Sparkles, ready: true },
-  { href: "/performance", label: "Performance", icon: Gauge, ready: false },
+  { href: "/performance", label: "Performance", icon: Gauge, ready: true },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {

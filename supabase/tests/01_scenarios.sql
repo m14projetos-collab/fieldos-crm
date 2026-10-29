@@ -115,6 +115,19 @@ select pg_temp.assert((select missing_field from vw_accounts_enriched where id =
 insert into goals (title, category, period_type, start_date, end_date, target_value)
 values ('Visitas do dia', 'visitas', 'diaria', public.org_today(:'org_a'), public.org_today(:'org_a'), 6);
 select pg_temp.assert((select actual_value from vw_goal_progress where category = 'visitas') = 3, 'meta de visitas: 3 realizadas');
+-- meta recorrente: diária válida por 1 ano conta só HOJE; mensal conta o mês
+insert into goals (title, category, period_type, start_date, end_date, target_value)
+values ('Visitas/dia (ano)', 'visitas', 'diaria', public.org_today(:'org_a') - 200, public.org_today(:'org_a') + 165, 6),
+       ('Vendas do mês', 'vendas', 'mensal', public.org_today(:'org_a') - 200, public.org_today(:'org_a') + 165, 8);
+reset role;
+update visits set completed_at = completed_at - interval '40 days' where id = :'visit1';
+set role authenticated;
+select pg_temp.assert((select actual_value from vw_goal_progress where title = 'Visitas/dia (ano)') = 2, 'meta diária recorrente conta só o dia de hoje');
+select pg_temp.assert((select period_start = period_end and period_start = public.org_today(:'org_a') from vw_goal_progress where title = 'Visitas/dia (ano)'), 'janela da meta diária = hoje');
+select pg_temp.assert((select actual_value from vw_goal_progress where title = 'Vendas do mês') = 1, 'meta mensal conta vendas do mês');
+reset role;
+update visits set completed_at = completed_at + interval '40 days' where id = :'visit1';
+set role authenticated;
 
 -- ===================== Usuário B: isolamento =====================
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
@@ -231,7 +244,7 @@ select pg_temp.assert((select count(*) from follow_ups where account_id = :'accp
   and due_date = org_today(:'org_a') + 7) = 1, 'fechar: pós-venda em 7 dias');
 select pg_temp.assert((select count(*) from follow_ups where account_id = :'accp' and status = 'pendente') = 1,
   'fechar: só 1 próxima ação');
-select pg_temp.assert((select actual_value from vw_goal_progress where category = 'visitas') = 3, 'mover no Kanban não infla meta de visitas');
+select pg_temp.assert((select actual_value from vw_goal_progress where title = 'Visitas do dia') = 3, 'mover no Kanban não infla meta de visitas');
 
 -- upsell num cliente não rebaixa a conta
 select public.create_opportunity(:'acc1', 'qualificado', 50, 'Módulo delivery') as opp_up \gset

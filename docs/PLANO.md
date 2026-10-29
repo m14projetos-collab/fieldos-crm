@@ -41,25 +41,35 @@ Critérios de aceite:
 - ✅ UI otimista: a tela muda antes da resposta do servidor e desfaz se o servidor recusar.
 - 🟡 Login por link mágico, onboarding da org e realtime: escritos, não testados contra um Supabase real.
 
-## Fase 2 — CRM, Pipeline e Rotas ⬜
+## Fase 2 — CRM, Pipeline e Rotas ✅ (29/10/2026)
 
-- Tabela operacional (ordenada por próxima ação), Kanban (arrastar/clicar) e visão por região/bairro.
-- Automações de etapa no Kanban: Proposta Enviada cria follow-up de cobrança e grava `proposal_sent_at`;
-  Fechado grava `closed_at`, marca a conta e cria pós-venda 7 dias (em RPC, como o Quick Log).
-- Rota do dia (data, turno, modo, KM) com visitas ordenadas; otimizador por vizinho mais próximo sobre lat/long
-  das contas (geocodificação gratuita via Nominatim, com cache em `accounts`), KM e tempo total calculados.
+- `/crm`: Tabela (ordenável, cartões no celular), Kanban de Prospecção (status da conta), Kanban de Pipeline
+  (oportunidades, valor e forecast ponderado por coluna, deals parados há 7+ dias em destaque) e Regiões (bairros
+  com base, pipeline, MRR, conversão e contas sem próxima ação). Mover por arrastar (desktop) ou menu (celular).
+- Migration 0009: `move_opportunity`, `create_opportunity` (no máximo 1 aberta por conta), `set_account_status`,
+  `cancel_visit`, `reschedule_visit`, `save_route` (1 rota por vendedor/dia), `set_route_status`.
+  Fechar exige MRR; perder exige motivo; cada movimento troca as pendentes por UMA próxima ação.
+- `/rotas`: visitas do dia em ordem, otimização (vizinho mais próximo + 2-opt), distância por ruas via OSRM com
+  fallback em linha reta × fator (rotulado na tela), horários recalculados, link do Google Maps com todas as
+  paradas, geocodificação gratuita (OpenStreetMap, 1 pedido/s, validada pelo bairro), encaixe de contas com ação
+  vencida perto da rota, e planejador de dia de campo por bairro (quantas visitas cabem sai da janela de horário).
 
-Aceite: mover card atualiza conta e follow-up numa transação; otimizar rota reduz KM calculado (não estimado fixo);
-nenhuma coluna de cliente duplicada em `routes`.
+Validado: 40+ cenários SQL locais, paridade TS (vitest), fluxo completo em produção dentro de transação revertida,
+telas no navegador com API simulada. Não validado daqui: chamadas ao OSRM/OpenStreetMap (a rede do ambiente de
+desenvolvimento bloqueia; no celular funcionam, e se falharem o app cai para linha reta).
 
-## Fase 3 — Copiloto CHAVE e Performance ⬜
+## Fase 3 — Copiloto CHAVE e Performance ✅ (29/10/2026)
 
-- Qualificador ICP (5 critérios; < 3 = lead de nutrição) salvo em `accounts.icp_checklist`.
-- Matriz de objeções e playbooks por persona (tabela `playbooks`, editável por org).
-- Auditor CHAVE com IA: Edge Function chamando a API da Claude com o prompt de auditoria do Notion. Tem custo por
-  uso; decidir limite mensal antes.
-- Metas diárias/semanais/mensais com barras (lendo `vw_goal_progress`), Daily automática + check-in qualitativo,
-  funil e conversão por persona (Recharts).
+- `/chave`: ICP (5 perguntas; 3+ "não" = nutrição; prioridade sugerida pela calibragem do método) salvo em
+  `accounts.icp_checklist`; personas com bom/mau fit e perguntas de Hipótese/Ancoragem; 7 objeções com pergunta de
+  isolamento pronta; auditoria pelo checklist de aplicação (nota por etapa, sem palavra-chave) salva em
+  `opportunities.chave_checklist`; prompt de auditoria com contexto do CRM para colar no Claude/ChatGPT;
+  termômetro com as 4 métricas de alerta do método (sem alerta abaixo de 10 casos); playbooks editáveis.
+- `/performance`: metas recorrentes (migration 0010: o realizado é do dia/semana/mês atual), ritmo por dia útil,
+  Daily automática + nota/humor/impacto/aprendizado (`daily_logs`), funil cumulativo, atividade 14 dias,
+  conversão por persona/segmento/bairro/sistema, motivos de perda e ciclo médio.
+- Auditor com IA automático (Edge Function + API da Claude): **não feito**, depende de chave de API e limite de
+  custo definidos pelo Michel. O prompt pronto cobre o uso manual sem custo.
 
 ## Fase 4 — SaaS ⬜
 
