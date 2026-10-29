@@ -1,0 +1,112 @@
+"use client";
+// Cache único (TanStack Query) + mutações otimistas: a UI muda na hora usando as
+// mesmas regras do banco (transitions.ts); o servidor confirma e o cache é revalidado.
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { createContext, useCallback, useContext, useEffect, useMemo } from "react";
+import { toast } from "sonner";
+import { type EnrichedAccount, enrichAll } from "@/lib/domain/enrich";
+import {
+  type CompleteFollowUpInput, type CreateLeadInput, type Ctx, DomainError, type LogVisitInput,
+  type ScheduleVisitInput, applyCompleteFollowUp, applyCreateLead, applyLogVisitOutcome, applyScheduleVisit,
+  applyUpdateAccount,
+} from "@/lib/domain/transitions";
+import type { Account, Snapshot } from "@/lib/domain/types";
+import type { Repo } from "./repo";
+
+const RepoCtx = createContext<Repo | null>(null);
+export const RepoProvider = RepoCtx.Provider;
+
+export function useRepo(): Repo {
+  const r = useContext(RepoCtx);
+  if (!r) throw new Error("RepoProvider ausente");
+  return r;
+}
+
+const key = (orgId: string) => ["snapshot", orgId] as const;
+
+export function useSnapshot() {
+  const repo = useRepo();
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: key(repo.session.orgId), queryFn: () => repo.load(), staleTime: 30_000 });
+  useEffect(
+    () => repo.subscribe(() => void qc.invalidateQueries({ queryKey: key(repo.session.orgId) })),
+    [repo, qc],
+  );
+  return q;
+}
+
+export function useEnriched(snapshot: Snapshot | undefined) {
+  return useMemo(() => (snapshot ? enrichAll(snapshot) : new Map<string, EnrichedAccount>()), [snapshot]);
+}
+
+export function useActions() {
+  const repo = useRepo();
+  const qc = useQueryClient();
+  const k = key(repo.session.orgId);
+
+  const run = useCallback(
+    async <I,>(input: I, apply: (s: Snapshot, i: I, c: Ctx) => Snapshot, server: (i: I) => Promise<unknown>, okMsg?: string) => {
+      const prev = qc.getQueryData<Snapshot>(k);
+      const ctx: Ctx = {
+        orgId: repo.session.orgId, userId: repo.session.userId, tz: repo.session.timezone,
+        now: new Date(), newId: () => crypto.randomUUID(),
+      };
+      // 1) aplica localmente (valida as regras antes de ir ao servidor)
+      if (prev) {
+        try {
+          qc.setQueryData<Snapshot>(k, apply(prev, input, ctx));
+        } catch (e) {
+          if (e instanceof DomainError) {
+            toast.error(e.message);
+            return false;
+          }
+          throw e;
+        }
+      }
+      // 2) confirma no servidor
+      try {
+        await server(input);
+        if (okMsg) toast.success(okMsg);
+        return true;
+      } catch (e) {
+        if (prev) qc.setQueryData(k, prev);
+        toast.error(e instanceof Error ? e.message : "Não foi possível salvar");
+        return false;
+      } finally {
+        void qc.invalidateQueries({ queryKey: k });
+      }
+    },
+    [qc, k, repo],
+  );
+
+  return {
+    logVisitOutcome: (i: LogVisitInput) =>
+      run(i, applyLogVisitOutcome, (x) => repo.logVisitOutcome(x), "Visita registrada. CRM, pipeline e próximo follow-up atualizados."),
+    completeFollowUp: (i: CompleteFollowUpInput) =>
+      run(i, applyCompleteFollowUp, (x) => repo.completeFollowUp(x), i.nextInDays != null ? "Feito. Próximo follow-up agendado." : "Follow-up concluído."),
+    createLead: (i: CreateLeadInput) => {
+      const id = crypto.randomUUID();
+      return run({ ...i, id }, (s, x, c) => applyCreateLead(s, x, c, id), (x) => repo.createLead(x), "Lead criado com follow-up Dia 0.").then(
+        (ok) => (ok ? id : null),
+      );
+    },
+    scheduleVisit: (i: ScheduleVisitInput) => {
+      const id = crypto.randomUUID();
+      return run({ ...i, id }, (s, x, c) => applyScheduleVisit(s, x, c, id), (x) => repo.scheduleVisit(x), "Visita agendada.");
+    },
+    updateAccount: (id: string, patch: Partial<Account>, msg?: string) =>
+      run({ id, patch }, (s, x, c) => applyUpdateAccount(s, x.id, x.patch, c), (x) => repo.updateAccount(x.id, x.patch), msg),
+  };
+}
+
+/** Vendedor e empresa usados nos scripts de WhatsApp (sem nomes fixos no código). */
+export function useScriptCtx() {
+  const { session } = useRepo();
+  return useMemo(
+    () => ({
+      sellerName: session.userName.split(" ")[0] || "time comercial",
+      companyName: session.orgName.replace(/\s*\(demo\)\s*$/i, "").trim() || "nossa empresa",
+    }),
+    [session.userName, session.orgName],
+  );
+}

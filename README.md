@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FieldOS CRM — Edição Takeat Foodservice
 
-## Getting Started
+Sistema operacional comercial para vendas em campo (field sales) e inside sales. Multi-tenant, pronto para virar SaaS.
+Stack: Next.js 15 (App Router) · TypeScript · Tailwind 4 · Supabase (Postgres + Auth + RLS + Realtime) ·
+TanStack Query · Zustand · cmdk · Radix.
 
-First, run the development server:
+Plano por fases e critérios de aceite: [`docs/PLANO.md`](docs/PLANO.md).
+
+## Rodar agora (modo demo, sem Supabase)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Sem variáveis de ambiente o app abre em **modo demo**: dados fictícios salvos só no navegador, com as mesmas
+regras de negócio do banco. "Restaurar dados de exemplo" fica na barra lateral.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Ligar ao Supabase (plano gratuito)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Crie um projeto no Supabase (ex.: `fieldos-crm`).
+2. Aplique as migrations, em ordem:
+   - com a CLI: `npx supabase link --project-ref <ref>` e depois `npx supabase db push`; ou
+   - pelo SQL Editor: cole e rode cada arquivo de `supabase/migrations/` na ordem do nome.
+3. Em *Authentication → URL Configuration*, coloque a URL do app (ex.: `http://localhost:3000`) em Site URL e Redirect URLs.
+4. Copie `.env.example` para `.env.local` e preencha `NEXT_PUBLIC_SUPABASE_URL` e `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   (*Project Settings → API*).
+5. `npm run dev`, entre com seu e-mail (link mágico) e crie a organização.
 
-## Learn More
+A chave anon é pública por design; a segurança vem do RLS. Nunca coloque a `service_role` no front-end.
 
-To learn more about Next.js, take a look at the following resources:
+## Testes
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm test                         # regras de negócio em TS (vitest)
+npx tsc --noEmit && npm run lint # tipos e lint
+# migrations + RLS + RPCs num Postgres 15+ descartável (sem Supabase):
+PGBIN=/usr/lib/postgresql/16/bin ./supabase/tests/run.sh
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+`supabase/tests/01_scenarios.sql` e `src/lib/domain/domain.test.ts` rodam o mesmo roteiro (lead → cadência → visita
+→ proposta → fechado) e conferem o mesmo score (72). Se as regras do SQL e do TS divergirem, um dos dois quebra.
 
-## Deploy on Vercel
+## Estrutura
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+supabase/migrations/   schema, RLS, views calculadas, RPCs das ações rápidas, realtime
+supabase/tests/        stub do auth + cenários (isolamento entre orgs, Quick Log, regra da próxima ação)
+src/lib/domain/        regras puras: score, próxima ação, transições (espelho das RPCs), cadência, ancoragem, "Hoje"
+src/lib/data/          Repo (demo | Supabase), cache TanStack Query com mutação otimista
+src/components/        Hoje, Quick Log, Gaveta 360º, Command Palette, diálogos, shell
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Regras que o sistema garante
+
+- Dados cadastrais e geográficos só em `accounts`. Visitas, rotas e pipeline leem por relação.
+- `follow_ups` é a única fonte de próxima ação. Conta em negociação ativa não fica sem follow-up pendente.
+- Metas, KPIs e alertas são calculados dos registros; nada de número digitado.
