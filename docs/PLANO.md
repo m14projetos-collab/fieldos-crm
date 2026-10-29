@@ -67,6 +67,8 @@ nenhuma coluna de cliente duplicada em `routes`.
 - Parametrização por org em `organizations.settings`: bairros, sistemas concorrentes, segmentos, templates de WhatsApp, etapas.
 - Importação CSV do Notion (CRM, Agenda, Pipeline, Follow-ups) com deduplicação.
 - Cobrança e limites por plano.
+- SMTP próprio no Supabase Auth (ex.: Resend, gratuito até 3 mil/mês): o e-mail embutido do Supabase tem limite
+  baixo por hora ("email rate limit exceeded") e não serve para vários usuários.
 
 ## Decisões e correções em relação ao material existente
 
