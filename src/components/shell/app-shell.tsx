@@ -17,7 +17,7 @@ import { useUi } from "@/lib/ui-store";
 const NAV = [
   { href: "/", label: "Hoje", icon: Sun, ready: true },
   { href: "/crm", label: "CRM", icon: KanbanSquare, ready: true },
-  { href: "/rotas", label: "Rotas", icon: MapIcon, ready: false },
+  { href: "/rotas", label: "Rotas", icon: MapIcon, ready: true },
   { href: "/chave", label: "CHAVE", icon: Sparkles, ready: false },
   { href: "/performance", label: "Performance", icon: Gauge, ready: false },
 ];

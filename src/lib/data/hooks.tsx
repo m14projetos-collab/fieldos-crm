@@ -103,9 +103,11 @@ export function useActions() {
         (ok) => (ok ? id : null),
       );
     },
-    scheduleVisit: (i: ScheduleVisitInput) => {
+    scheduleVisit: (i: ScheduleVisitInput, opts?: { silent?: boolean }) => {
       const id = crypto.randomUUID();
-      return run({ ...i, id }, (s, x, c) => applyScheduleVisit(s, x, c, id), (x) => repo.scheduleVisit(x), "Visita agendada.");
+      return run({ ...i, id }, (s, x, c) => applyScheduleVisit(s, x, c, id), (x) => repo.scheduleVisit(x), opts?.silent ? undefined : "Visita agendada.").then(
+        (ok) => (ok ? id : null),
+      );
     },
     updateAccount: (id: string, patch: Partial<Account>, msg?: string) =>
       run({ id, patch }, (s, x, c) => applyUpdateAccount(s, x.id, x.patch, c), (x) => repo.updateAccount(x.id, x.patch), msg),
