@@ -161,7 +161,7 @@ export class SupabaseRepo implements Repo {
     mapError(error);
   }
   async savePlaybook(p: Parameters<Repo["savePlaybook"]>[0]) {
-    const { error } = await this.sb.from("playbooks").upsert(omit(p, ["org_id"]));
+    const { error } = await this.sb.from("playbooks").upsert(omit(p, ["org_id", "updated_at"]));
     mapError(error);
   }
   async deletePlaybook(id: string) {

@@ -2,7 +2,9 @@
 // Gaveta 360º: abre de qualquer tela, sem recarregar, com tudo da conta num lugar.
 import * as Dialog from "@radix-ui/react-dialog";
 import { CalendarPlus, MessageCircle, Navigation, Pencil, Phone, X } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
+import { icpResult } from "@/lib/domain/chave";
 import { FollowUpRow } from "@/components/hoje/follow-up-row";
 import { Badge, Button, SectionTitle, cn, scoreColor } from "@/components/ui/primitives";
 import { cadenceScript, followUpScript, mapsLink, waLink, waNumber } from "@/lib/domain/cadence";
@@ -100,6 +102,15 @@ export function AccountDrawer() {
                 <PainCalculator acc={acc} />
 
                 <PipelinePanel acc={acc} opps={opps} />
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Link href={`/chave?conta=${acc.id}`} onClick={closeDrawer} className="rounded-lg border border-slate-700 px-3 py-2 text-center text-xs font-semibold text-slate-200 hover:border-slate-500">
+                    🧭 Qualificar (ICP){icpResult(acc.icp_checklist).verdict === "nutricao" ? " · nutrição" : ""}
+                  </Link>
+                  <Link href={`/chave?conta=${acc.id}&aba=auditar`} onClick={closeDrawer} className="rounded-lg border border-slate-700 px-3 py-2 text-center text-xs font-semibold text-slate-200 hover:border-slate-500">
+                    🔑 Auditar conversa (CHAVE)
+                  </Link>
+                </div>
 
                 <section>
                   <SectionTitle>Histórico de visitas ({visits.length})</SectionTitle>
