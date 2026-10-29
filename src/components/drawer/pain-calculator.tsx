@@ -5,6 +5,7 @@ import { brl } from "@/lib/domain/dates";
 import { PAIN_DEFAULTS, computePain } from "@/lib/domain/pain";
 import type { Account, PainInputs } from "@/lib/domain/types";
 import { useActions } from "@/lib/data/hooks";
+import { toast } from "sonner";
 
 const FIELDS: { k: keyof PainInputs; label: string; suffix?: string }[] = [
   { k: "orders_month", label: "Pedidos/mês no app" },
@@ -16,19 +17,20 @@ const FIELDS: { k: keyof PainInputs; label: string; suffix?: string }[] = [
 ];
 
 /** Calculadora de Ancoragem (CHAVE): o cliente vê o número da dor antes do preço. */
-export function PainCalculator({ acc }: { acc: Account }) {
+export function PainCalculator({ acc, wide }: { acc?: Account; wide?: boolean }) {
   const actions = useActions();
-  const [inp, setInp] = useState<PainInputs>({ ...PAIN_DEFAULTS, ...acc.pain_inputs });
-  useEffect(() => setInp({ ...PAIN_DEFAULTS, ...acc.pain_inputs }), [acc.id, acc.pain_inputs]);
+  const [inp, setInp] = useState<PainInputs>({ ...PAIN_DEFAULTS, ...acc?.pain_inputs });
+  useEffect(() => setInp({ ...PAIN_DEFAULTS, ...acc?.pain_inputs }), [acc?.id, acc?.pain_inputs]);
   const r = computePain(inp);
 
   const save = () =>
-    actions.updateAccount(acc.id, { pain_inputs: inp, estimated_monthly_pain_brl: r.inactionCost }, "Ancoragem salva no card do restaurante.");
+    acc && actions.updateAccount(acc.id, { pain_inputs: inp, estimated_monthly_pain_brl: r.inactionCost }, "Ancoragem salva no card do restaurante.");
+  const pitch = `Hoje você deixa cerca de ${brl(r.inactionCost)} por mês na mesa entre comissão evitável e erro de comanda.${r.paybackDays != null ? ` O sistema se paga em ${r.paybackDays} dias.` : ""}`;
 
   return (
     <section>
       <SectionTitle>Calculadora de Ancoragem de Dor</SectionTitle>
-      <div className="grid grid-cols-2 gap-2">
+      <div className={wide ? "grid grid-cols-2 gap-2 sm:grid-cols-3" : "grid grid-cols-2 gap-2"}>
         {FIELDS.map((f) => (
           <label key={f.k} className="space-y-0.5 text-[11px] text-slate-400">
             {f.label}{f.suffix ? ` (${f.suffix})` : ""}
@@ -51,8 +53,15 @@ export function PainCalculator({ acc }: { acc: Account }) {
         <Row label="Payback do sistema" value={r.paybackDays != null ? `${r.paybackDays} dias` : "informe a mensalidade"} />
         <p className="pt-1 text-[10px] text-slate-500">Premissas: 1 erro de comanda = 1 ticket perdido; só a % migrável da comissão conta como evitável.</p>
       </div>
-      <div className="mt-2 flex justify-end">
-        <Button size="sm" variant="success" onClick={save} disabled={r.inactionCost <= 0}>Salvar no card</Button>
+      {r.inactionCost > 0 ? (
+        <p className="mt-2 rounded-lg border border-slate-800 bg-slate-950/60 p-2.5 text-xs italic text-slate-300">“{pitch}”</p>
+      ) : null}
+      <div className="mt-2 flex justify-end gap-2">
+        <Button size="sm" variant="outline" disabled={r.inactionCost <= 0}
+          onClick={() => void navigator.clipboard?.writeText(pitch).then(() => toast.success("Frase copiada."), () => toast.error("Não foi possível copiar."))}>
+          Copiar frase
+        </Button>
+        {acc ? <Button size="sm" variant="success" onClick={() => void save()} disabled={r.inactionCost <= 0}>Salvar no card</Button> : null}
       </div>
     </section>
   );

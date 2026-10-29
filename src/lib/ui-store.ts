@@ -9,6 +9,8 @@ interface UiState {
   move: MoveRequest | null;
   setMove: (m: MoveRequest | null) => void;
   drawerAccountId: string | null;
+  /** última ficha aberta: a aba lateral "Ficha 360º" reabre ela no desktop */
+  lastDrawerAccountId: string | null;
   quickLog: { open: boolean; visitId: string | null };
   paletteOpen: boolean;
   newLeadOpen: boolean;
@@ -27,11 +29,12 @@ export const useUi = create<UiState>((set) => ({
   move: null,
   setMove: (move) => set({ move }),
   drawerAccountId: null,
+  lastDrawerAccountId: null,
   quickLog: { open: false, visitId: null },
   paletteOpen: false,
   newLeadOpen: false,
   schedule: { open: false, accountId: null },
-  openDrawer: (id) => set({ drawerAccountId: id }),
+  openDrawer: (id) => set({ drawerAccountId: id, lastDrawerAccountId: id }),
   closeDrawer: () => set({ drawerAccountId: null }),
   openQuickLog: (visitId = null) => set({ quickLog: { open: true, visitId } }),
   closeQuickLog: () => set({ quickLog: { open: false, visitId: null } }),

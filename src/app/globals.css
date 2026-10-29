@@ -3,16 +3,72 @@
 @theme {
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono), ui-monospace, monospace;
-  --color-brand-300: #fda4af;
-  --color-brand-400: #fb7185;
+  --color-onaccent: #ffffff;
+  /* Paleta M14 OS: as classes slate/ink/branco apontam para tokens que trocam com o tema (M14 Dark / Daylight) */
+  --color-ink-950: var(--m-bg);
+  --color-white: var(--m-fg);
+  --color-slate-50: var(--m-s50);
+  --color-slate-100: var(--m-s100);
+  --color-slate-200: var(--m-s200);
+  --color-slate-300: var(--m-s300);
+  --color-slate-400: var(--m-s400);
+  --color-slate-500: var(--m-s500);
+  --color-slate-600: var(--m-s600);
+  --color-slate-700: var(--m-s700);
+  --color-slate-800: var(--m-s800);
+  --color-slate-900: var(--m-s900);
+  --color-slate-950: var(--m-s950);
+  --color-brand-300: var(--m-brand-300);
+  --color-brand-400: var(--m-brand-400);
   --color-brand-500: #f43f5e;
-  --color-brand-600: #e11d48;
-  --color-ink-950: #090d16;
+  --color-brand-600: #e11d48; /* M14 Crimson */
+  --color-emerald-200: var(--m-em-200);
+  --color-emerald-300: var(--m-em-300);
+  --color-emerald-400: var(--m-em-400);
+  --color-amber-100: var(--m-am-100);
+  --color-amber-200: var(--m-am-200);
+  --color-amber-300: var(--m-am-300);
+  --color-red-300: var(--m-red-300);
+  --color-red-400: var(--m-red-400);
+  --color-indigo-200: var(--m-in-200);
+  --color-indigo-300: var(--m-in-300);
+  --color-sky-200: var(--m-sky-200);
+  --color-sky-300: var(--m-sky-300);
+}
+
+/* M14 Dark (padrão): Obsidian Carbon, superfícies técnicas e bordas precisas */
+:root {
+  color-scheme: dark;
+  --m-bg: #0b0f19;
+  --m-fg: #ffffff;
+  --m-s50: #f8fafc; --m-s100: #f1f5f9; --m-s200: #e2e8f0; --m-s300: #cbd5e1; --m-s400: #94a3b8;
+  --m-s500: #64748b; --m-s600: #3b4763; --m-s700: #2a3550; --m-s800: #1e273b; --m-s900: #111624; --m-s950: #151c2c;
+  --m-brand-300: #fda4af; --m-brand-400: #fb7185;
+  --m-em-200: #a7f3d0; --m-em-300: #6ee7b7; --m-em-400: #34d399;
+  --m-am-100: #fef3c7; --m-am-200: #fde68a; --m-am-300: #fcd34d;
+  --m-red-300: #fca5a5; --m-red-400: #f87171;
+  --m-in-200: #c7d2fe; --m-in-300: #a5b4fc;
+  --m-sky-200: #bae6fd; --m-sky-300: #7dd3fc;
+}
+
+/* Daylight: modo claro para usar na rua, sob o sol (contraste alto, texto escuro) */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --m-bg: #eef1f6;
+  --m-fg: #0b0f19;
+  --m-s50: #0b0f19; --m-s100: #0f172a; --m-s200: #1e293b; --m-s300: #334155; --m-s400: #475569;
+  --m-s500: #5b6b82; --m-s600: #94a3b8; --m-s700: #cbd5e1; --m-s800: #dfe5ee; --m-s900: #ffffff; --m-s950: #f8fafc;
+  --m-brand-300: #be123c; --m-brand-400: #e11d48;
+  --m-em-200: #065f46; --m-em-300: #047857; --m-em-400: #059669;
+  --m-am-100: #78350f; --m-am-200: #92400e; --m-am-300: #b45309;
+  --m-red-300: #b91c1c; --m-red-400: #dc2626;
+  --m-in-200: #3730a3; --m-in-300: #4338ca;
+  --m-sky-200: #075985; --m-sky-300: #0369a1;
 }
 
 html, body {
   background: var(--color-ink-950);
-  color: #f1f5f9;
+  color: var(--color-slate-100);
 }
 
 /* toque confortável no celular */

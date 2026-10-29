@@ -282,7 +282,7 @@ export function RotasView() {
                 {origin ? <LocateFixed size={14} className="text-emerald-300" /> : <Crosshair size={14} />} {origin ? "Partindo daqui" : "Partir da minha localização"}
               </Button>
               <Button size="sm" variant="primary" disabled={!!busy} onClick={() => void optimize()}>
-                <Wand2 size={14} /> {busy === "otimizando" ? "Calculando…" : "Otimizar ordem"}
+                <Wand2 size={14} /> {busy === "otimizando" ? "Calculando…" : "🧭 Otimizar ordem (Auto-Cluster)"}
               </Button>
               {missingGeo.length ? (
                 <Button size="sm" disabled={!!busy} onClick={() => void geocodeAll()}>
@@ -315,6 +315,8 @@ export function RotasView() {
               </p>
             ) : null}
 
+            <RouteMesh stops={stops.map((s) => ({ name: s.a.name, loc: s.loc }))} origin={origin} />
+
             <ol className="space-y-2">
               {stops.map((s, i) => {
                 const prec = precisionOf(s.a, s.loc);
@@ -326,7 +328,7 @@ export function RotasView() {
                       <div className="mb-1.5 text-[10px] text-slate-500">↓ {leg.km.toFixed(1)} km · {fmtMin(leg.minutes)}</div>
                     ) : null}
                     <div className="flex items-start gap-3">
-                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-600 text-xs font-bold text-white">{i + 1}</span>
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-600 text-xs font-bold text-onaccent">{i + 1}</span>
                       <div className="min-w-0 flex-1">
                         <button type="button" onClick={() => openDrawer(s.a.id)} title="Abrir ficha" className="block max-w-full truncate text-left text-sm font-semibold text-slate-100 underline decoration-slate-600 decoration-dotted underline-offset-2 hover:text-brand-300">
                           {s.a.name}
@@ -619,5 +621,78 @@ function FieldDayPlanner({ date, tz, enriched, settings, origin, busyDay }: {
         </div>
       ) : null}
     </Card>
+  );
+}
+
+/**
+ * Malha geográfica do dia (SVG, sem mapa externo): paradas numeradas na ordem atual, ligadas em sequência.
+ * Pontos no centro do bairro (endereço não localizado) aparecem tracejados e espalhados em volta do centro,
+ * só para ficarem visíveis: a posição deles é aproximada.
+ */
+function RouteMesh({ stops, origin }: { stops: { name: string; loc: Located | null }[]; origin: LatLng | null }) {
+  const W = 640, H = 220, PAD = 22;
+  const pts = stops.map((s, i) => ({ ...s, i })).filter((s) => s.loc);
+  if (pts.length < 2) return null;
+  // espalha pontos empilhados (mesma coordenada) num pequeno círculo
+  const seen = new Map<string, number>();
+  const raw = pts.map((p) => {
+    const k = `${p.loc!.lat.toFixed(4)},${p.loc!.lng.toFixed(4)}`;
+    const n = seen.get(k) ?? 0;
+    seen.set(k, n + 1);
+    return { ...p, k, n };
+  });
+  const all = [...raw.map((p) => p.loc!), ...(origin ? [origin] : [])];
+  const lats = all.map((p) => p.lat), lngs = all.map((p) => p.lng);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats), minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+  const spanLat = Math.max(maxLat - minLat, 0.004), spanLng = Math.max(maxLng - minLng, 0.004);
+  const midLat = (minLat + maxLat) / 2, midLng = (minLng + maxLng) / 2;
+  const proj = (p: LatLng) => ({
+    x: W / 2 + ((p.lng - midLng) / spanLng) * (W - 2 * PAD),
+    y: H / 2 - ((p.lat - midLat) / spanLat) * (H - 2 * PAD),
+  });
+  const groupSize = new Map<string, number>();
+  for (const p of raw) groupSize.set(p.k, (groupSize.get(p.k) ?? 0) + 1);
+  const xy = raw.map((p) => {
+    const c = proj(p.loc!);
+    const g = groupSize.get(p.k)!;
+    if (g < 2) return { ...p, ...c };
+    const ang = (2 * Math.PI * p.n) / g, r = Math.min(14 + g * 2, 60);
+    return { ...p, x: c.x + Math.cos(ang) * r, y: c.y + Math.sin(ang) * r };
+  });
+  const o = origin ? proj(origin) : null;
+  const path = [...(o ? [o] : []), ...xy].map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+  const approx = xy.some((p) => p.loc!.source === "bairro");
+  return (
+    <figure className="mb-3 overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
+      <svg viewBox={`0 0 ${W} ${H}`} className="block h-auto w-full" role="img" aria-label={`Malha da rota com ${xy.length} paradas`}>
+        <defs>
+          <pattern id="mesh-grid" width="32" height="32" patternUnits="userSpaceOnUse">
+            <path d="M32 0H0V32" fill="none" stroke="var(--color-slate-800)" strokeWidth="1" />
+          </pattern>
+        </defs>
+        <rect width={W} height={H} fill="url(#mesh-grid)" />
+        <path d={path} fill="none" stroke="var(--color-brand-400)" strokeWidth="2" strokeLinejoin="round" strokeOpacity="0.8" />
+        {o ? (
+          <g>
+            <circle cx={o.x} cy={o.y} r="7" fill="var(--color-emerald-400)" />
+            <text x={o.x + 10} y={o.y + 4} fontSize="11" fill="var(--color-emerald-300)">você</text>
+          </g>
+        ) : null}
+        {xy.map((p) => (
+          <g key={p.i}>
+            <title>{`${p.i + 1}. ${p.name}${p.loc!.source === "bairro" ? " (posição aproximada: centro do bairro)" : ""}`}</title>
+            <circle cx={p.x} cy={p.y} r="10" fill={p.loc!.source === "bairro" ? "var(--color-slate-900)" : "var(--color-brand-600)"}
+              stroke={p.loc!.source === "bairro" ? "var(--color-amber-300)" : "none"} strokeWidth="1.5" strokeDasharray={p.loc!.source === "bairro" ? "3 2" : undefined} />
+            <text x={p.x} y={p.y + 3.5} textAnchor="middle" fontSize="10" fontWeight="700"
+              fill={p.loc!.source === "bairro" ? "var(--color-amber-300)" : "var(--color-onaccent)"}>{p.i + 1}</text>
+          </g>
+        ))}
+      </svg>
+      <figcaption className="flex flex-wrap gap-x-3 gap-y-1 border-t border-slate-800 px-3 py-1.5 text-[10px] text-slate-500">
+        <span>Malha geográfica · ordem atual</span>
+        {approx ? <span className="text-amber-300">◌ tracejado = endereço ainda não localizado (centro do bairro)</span> : null}
+        {stops.length > xy.length ? <span>{stops.length - xy.length} parada(s) sem localização fora do desenho</span> : null}
+      </figcaption>
+    </figure>
   );
 }

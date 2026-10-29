@@ -64,7 +64,7 @@ function WhatsAppCard({ settings, isAdmin }: { settings: OrgSettings; isAdmin: b
       <div role="radiogroup" aria-label="Modo do WhatsApp" className="grid grid-cols-3 gap-1 rounded-lg border border-slate-800 p-1 text-xs">
         {(["link", "evolution", "zapi"] as WaMode[]).map((m) => (
           <button key={m} type="button" role="radio" aria-checked={cfg.mode === m} disabled={!isAdmin} onClick={() => setCfg({ ...cfg, mode: m })}
-            className={cn("rounded-md px-2 py-1.5 font-semibold", cfg.mode === m ? "bg-brand-600 text-white" : "text-slate-400")}>
+            className={cn("rounded-md px-2 py-1.5 font-semibold", cfg.mode === m ? "bg-brand-600 text-onaccent" : "text-slate-400")}>
             {m === "link" ? "Link direto" : m === "evolution" ? "Evolution API" : "Z-API"}
           </button>
         ))}

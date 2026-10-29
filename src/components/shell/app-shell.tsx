@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
 import { AccountDialog } from "./account-dialog";
-import { AccountDrawer } from "@/components/drawer/account-drawer";
+import { ThemeToggle } from "./theme-toggle";
+import { AccountDrawer, InspectorTab } from "@/components/drawer/account-drawer";
 import { NewLeadDialog, ScheduleVisitDialog } from "@/components/dialogs/lead-visit-dialogs";
 import { MoveDialog } from "@/components/crm/move-dialog";
 import { CommandPalette } from "@/components/palette/command-palette";
@@ -21,8 +22,9 @@ const NAV = [
   { href: "/rotas", label: "Rotas", icon: MapIcon, ready: true },
   { href: "/chave", label: "CHAVE", icon: Sparkles, ready: true },
   { href: "/performance", label: "Performance", icon: Gauge, ready: true },
-  { href: "/integracoes", label: "Integrações", icon: Plug, ready: true },
 ];
+/** Fora das 5 abas oficiais: configuração, acessada pela barra lateral e por "Minha conta" no celular. */
+const SECONDARY = [{ href: "/integracoes", label: "Integrações", icon: Plug }];
 
 export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
@@ -32,6 +34,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isSupabase = repo.session.mode === "supabase";
   const hydrateNav = useNavApp((s) => s.hydrate);
   useEffect(() => hydrateNav(), [hydrateNav]);
+  const drawerOpen = useUi((s) => !!s.drawerAccountId);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -45,7 +48,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [setPalette]);
 
   return (
-    <div className="min-h-dvh md:pl-56">
+    <div className={cn("min-h-dvh md:pl-56", drawerOpen && "xl:pr-[28rem]")}>
       {/* Sidebar desktop */}
       <aside className="fixed inset-y-0 left-0 hidden w-56 flex-col border-r border-slate-800 bg-slate-950/80 p-4 md:flex">
         <div className="mb-6">
@@ -65,6 +68,15 @@ export function AppShell({ children }: { children: ReactNode }) {
               <n.icon size={16} />
               <span className="flex-1">{n.label}</span>
               {!n.ready ? <span className="rounded bg-slate-800 px-1.5 text-[9px] text-slate-500">em breve</span> : null}
+            </Link>
+          ))}
+        </nav>
+        <nav className="mt-4 space-y-1 border-t border-slate-800 pt-4">
+          {SECONDARY.map((n) => (
+            <Link key={n.href} href={n.href}
+              className={cn("flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs font-medium",
+                path === n.href ? "bg-brand-600/15 text-brand-300" : "text-slate-500 hover:bg-slate-800/60 hover:text-slate-200")}>
+              <n.icon size={14} /> {n.label}
             </Link>
           ))}
         </nav>
@@ -101,6 +113,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Command size={10} />K
           </kbd>
         </button>
+        <ThemeToggle />
         <Button variant="warn" size="sm" onClick={() => openQuickLog()} className="hidden sm:inline-flex">
           <CalendarCheck size={14} /> Check-in
         </Button>
@@ -114,10 +127,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         ) : null}
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 pb-28 pt-4 md:pb-10">{children}</main>
+      <main className="@container mx-auto max-w-6xl px-4 pb-28 pt-4 md:pb-10">{children}</main>
 
       {/* Bottom nav mobile */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-slate-800 bg-slate-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-slate-800 bg-slate-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         {NAV.map((n) => (
           <Link key={n.href} href={n.href} className={cn("flex flex-col items-center gap-0.5 py-2 text-[10px]", path === n.href ? "text-brand-300" : "text-slate-500")}>
             <n.icon size={18} />
@@ -129,12 +142,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         type="button"
         aria-label="Check-in de visita"
         onClick={() => openQuickLog()}
-        className="fixed bottom-20 right-4 z-30 grid h-14 w-14 place-items-center rounded-full bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/30 sm:hidden"
+        className="fixed bottom-20 right-4 z-30 grid h-14 w-14 place-items-center rounded-full bg-amber-500 text-[#0b0f19] shadow-lg shadow-amber-500/30 sm:hidden"
       >
         <CalendarCheck size={22} />
       </button>
 
       <AccountDrawer />
+      <InspectorTab />
       <QuickLogDialog />
       <CommandPalette />
       <NewLeadDialog />

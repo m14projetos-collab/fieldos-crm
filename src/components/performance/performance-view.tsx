@@ -11,6 +11,7 @@ import {
 } from "@/lib/domain/performance";
 import { lossLabel } from "@/lib/domain/pipeline";
 import type { Goal, Mood } from "@/lib/domain/types";
+import type { EnrichedAccount } from "@/lib/domain/enrich";
 
 const CATEGORY_LABEL: Record<Goal["category"], string> = {
   visitas: "Visitas realizadas", demonstracoes: "Demonstrações", propostas: "Propostas enviadas",
@@ -74,7 +75,7 @@ function Goals({ today }: { today: string }) {
       <div className="grid gap-2 md:grid-cols-2">
         {statuses.map((st) => {
           const target = Number(st.goal.target_value);
-          const color = st.state === "batida" ? "bg-emerald-500" : st.state === "no_ritmo" ? "bg-brand-500" : "bg-amber-500";
+          const color = st.state === "batida" ? "bg-emerald-400" : "bg-gradient-to-r from-rose-600 to-emerald-400";
           return (
             <div key={st.goal.id} className="rounded-xl border border-slate-800 bg-slate-950 p-3">
               <div className="flex items-start justify-between gap-2">
@@ -223,7 +224,7 @@ function Daily({ today }: { today: string }) {
           <div className="flex flex-wrap gap-1">
             {Array.from({ length: 10 }, (_, i) => i + 1).map((v) => (
               <button key={v} type="button" aria-pressed={score === v} onClick={() => setScore(score === v ? null : v)}
-                className={cn("h-8 w-8 rounded-md text-xs font-bold", score === v ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-300")}>{v}</button>
+                className={cn("h-8 w-8 rounded-md text-xs font-bold", score === v ? "bg-brand-600 text-onaccent" : "bg-slate-800 text-slate-300")}>{v}</button>
             ))}
           </div>
           <div className="text-[11px] text-slate-400">Humor</div>
@@ -277,13 +278,15 @@ function FunnelBlock({ today }: { today: string }) {
                 <span className="font-mono text-slate-200">{st.count}{st.conv != null ? <span className="ml-1 text-slate-500">({Math.round(st.conv * 100)}%)</span> : null}</span>
               </div>
               <div className="mt-1 h-2.5 rounded-full bg-slate-800">
-                <div className="h-full rounded-full bg-brand-500" style={{ width: `${(st.count / max) * 100}%` }} />
+                <div className="h-full rounded-full bg-gradient-to-r from-rose-600 to-emerald-400" style={{ width: `${(st.count / max) * 100}%` }} />
               </div>
             </li>
           ))}
         </ul>
         <p className="mt-2 text-[10px] text-slate-500">% = conversão da etapa anterior. Ciclo médio de venda: {cycle != null ? `${Math.round(cycle)} dias` : "sem vendas ainda"}.</p>
       </Card>
+
+      <MrrByBairro accounts={accounts} />
 
       <Card>
         <SectionTitle>Atividade (14 dias)</SectionTitle>
@@ -347,5 +350,54 @@ function FunnelBlock({ today }: { today: string }) {
         ) : <p className="text-xs text-slate-500">Nenhuma perda registrada. Ao marcar “Perdido”, o motivo é obrigatório e aparece aqui.</p>}
       </Card>
     </div>
+  );
+}
+
+/** MRR por bairro: fechado (cliente) e aberto (pipeline), para decidir onde vale concentrar rota. */
+function MrrByBairro({ accounts }: { accounts: EnrichedAccount[] }) {
+  const rows = useMemo(() => {
+    const m = new Map<string, { closed: number; open: number; clients: number }>();
+    for (const a of accounts) {
+      if (!a.mrr_closed && !a.mrr_open) continue;
+      const k = a.neighborhood?.trim() || "Sem bairro";
+      const r = m.get(k) ?? { closed: 0, open: 0, clients: 0 };
+      r.closed += a.mrr_closed;
+      r.open += a.mrr_open;
+      if (a.mrr_closed) r.clients += 1;
+      m.set(k, r);
+    }
+    return [...m.entries()].sort((x, y) => y[1].closed + y[1].open - (x[1].closed + x[1].open));
+  }, [accounts]);
+  const max = Math.max(1, ...rows.map(([, r]) => r.closed + r.open));
+  const noValue = accounts.filter((a) => a.opps_active > 0 && !a.mrr_open).length;
+  return (
+    <Card>
+      <SectionTitle>MRR por bairro</SectionTitle>
+      {rows.length ? (
+        <ul className="space-y-2">
+          {rows.slice(0, 10).map(([k, r]) => (
+            <li key={k}>
+              <div className="flex items-baseline justify-between gap-2 text-xs">
+                <span className="truncate font-semibold text-slate-200">{k}{r.clients ? <span className="font-normal text-slate-500"> · {r.clients} cliente(s)</span> : null}</span>
+                <span className="shrink-0 whitespace-nowrap font-mono text-slate-200">
+                  <span className="text-emerald-300">{brl(r.closed)}</span>{r.open ? <span className="text-slate-500"> + {brl(r.open)}</span> : null}
+                </span>
+              </div>
+              <div className="mt-1 flex h-2.5 overflow-hidden rounded-full bg-slate-800">
+                <div className="h-full bg-emerald-400" style={{ width: `${(r.closed / max) * 100}%` }} />
+                <div className="h-full bg-gradient-to-r from-rose-600 to-amber-400 opacity-70" style={{ width: `${(r.open / max) * 100}%` }} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-slate-400">Nenhum MRR registrado ainda.</p>
+      )}
+      <div className="mt-2 flex flex-wrap gap-3 text-[10px] text-slate-400">
+        <span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-emerald-400" />Fechado</span>
+        <span><span className="mr-1 inline-block h-2 w-2 rounded-sm bg-rose-500" />Pipeline aberto</span>
+        {noValue ? <span className="text-amber-300">{noValue} conta(s) com oportunidade aberta sem MRR não aparecem aqui</span> : null}
+      </div>
+    </Card>
   );
 }

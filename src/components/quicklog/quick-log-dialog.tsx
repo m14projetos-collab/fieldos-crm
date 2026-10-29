@@ -125,7 +125,7 @@ export function QuickLogDialog() {
           <div className="flex flex-wrap gap-1.5">
             {DAYS.map((d) => (
               <button key={d} type="button" onClick={() => setDays(d)}
-                className={cn("rounded-md px-2 py-1 text-[11px] font-semibold", effDays === d ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-300")}>
+                className={cn("rounded-md px-2 py-1 text-[11px] font-semibold", effDays === d ? "bg-brand-600 text-onaccent" : "bg-slate-800 text-slate-300")}>
                 +{d}d
               </button>
             ))}
@@ -133,7 +133,7 @@ export function QuickLogDialog() {
           <div className="flex flex-wrap gap-1.5">
             {CHANNELS.map((c) => (
               <button key={c} type="button" onClick={() => setChannel(c)}
-                className={cn("rounded-md px-2 py-1 text-[11px] font-semibold", effChannel === c ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-300")}>
+                className={cn("rounded-md px-2 py-1 text-[11px] font-semibold", effChannel === c ? "bg-brand-600 text-onaccent" : "bg-slate-800 text-slate-300")}>
                 {CHANNEL_LABEL[c]}
               </button>
             ))}

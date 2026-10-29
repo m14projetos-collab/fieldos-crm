@@ -6,11 +6,11 @@ export const cn = (...v: ClassValue[]) => twMerge(clsx(v));
 
 type Variant = "primary" | "ghost" | "outline" | "success" | "warn" | "whatsapp";
 const variants: Record<Variant, string> = {
-  primary: "bg-brand-600 hover:bg-brand-500 text-white",
+  primary: "bg-brand-600 hover:bg-brand-500 text-onaccent",
   ghost: "bg-slate-800/70 hover:bg-slate-700 text-slate-200",
   outline: "border border-slate-700 hover:border-slate-500 text-slate-200",
-  success: "bg-emerald-600 hover:bg-emerald-500 text-white",
-  warn: "bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30",
+  success: "bg-emerald-500 hover:bg-emerald-400 text-[#0b0f19]", // M14 Emerald
+  warn: "bg-amber-500 hover:bg-amber-400 text-[#0b0f19]", // M14 Gold: check-in de campo
   whatsapp: "bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30",
 };
 

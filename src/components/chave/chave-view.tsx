@@ -1,6 +1,7 @@
 "use client";
 // CHAVE: qualificação ICP, objeções por persona, auditoria estruturada, termômetro e playbooks.
-import { BookOpen, ClipboardCheck, Copy, Gauge, MessageSquareWarning, Plus, Search, ShieldCheck, Trash2, Zap } from "lucide-react";
+import { BookOpen, Calculator, ClipboardCheck, Copy, Gauge, MessageSquareWarning, Plus, Search, ShieldCheck, Trash2, Zap } from "lucide-react";
+import { PainCalculator } from "@/components/drawer/pain-calculator";
 import { missingDefaults } from "@/lib/domain/playbooks";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -17,9 +18,10 @@ import { dateInTz, formatDateBR } from "@/lib/domain/dates";
 import type { EnrichedAccount } from "@/lib/domain/enrich";
 import type { IcpChecklist, IcpKey, Persona, Playbook } from "@/lib/domain/types";
 
-type Tab = "icp" | "objecoes" | "auditar" | "termometro" | "playbooks";
+type Tab = "icp" | "ancoragem" | "objecoes" | "auditar" | "termometro" | "playbooks";
 const TABS: { id: Tab; label: string; icon: typeof Search }[] = [
-  { id: "icp", label: "Qualificar", icon: ShieldCheck },
+  { id: "icp", label: "Qualificar (ICP)", icon: ShieldCheck },
+  { id: "ancoragem", label: "Ancoragem de dor", icon: Calculator },
   { id: "objecoes", label: "Objeções", icon: MessageSquareWarning },
   { id: "auditar", label: "Auditar", icon: ClipboardCheck },
   { id: "termometro", label: "Termômetro", icon: Gauge },
@@ -63,15 +65,21 @@ export function ChaveView() {
         <div role="tablist" className="flex flex-wrap gap-1 rounded-xl border border-slate-800 bg-slate-900 p-1">
           {TABS.map((t) => (
             <button key={t.id} role="tab" type="button" aria-selected={tab === t.id} onClick={() => setTab(t.id)}
-              className={cn("flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold", tab === t.id ? "bg-brand-600 text-white" : "text-slate-400 hover:text-slate-200")}>
+              className={cn("flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold", tab === t.id ? "bg-brand-600 text-onaccent" : "text-slate-400 hover:text-slate-200")}>
               <t.icon size={13} /> {t.label}
             </button>
           ))}
         </div>
       </div>
 
-      {tab === "icp" || tab === "auditar" ? <AccountPicker all={[...enriched.values()]} value={acc} onChange={setAccId} /> : null}
+      {tab === "icp" || tab === "auditar" || tab === "ancoragem" ? <AccountPicker all={[...enriched.values()]} value={acc} onChange={setAccId} /> : null}
       {tab === "icp" ? <IcpTab acc={acc} all={[...enriched.values()]} onPick={setAccId} /> : null}
+      {tab === "ancoragem" ? (
+        <Card>
+          <PainCalculator acc={acc} wide />
+          {!acc ? <p className="mt-2 text-[11px] text-slate-500">Sem restaurante escolhido, a conta é só simulação. Escolha um acima para salvar o número no card.</p> : null}
+        </Card>
+      ) : null}
       {tab === "objecoes" ? <ObjectionsTab persona={acc?.persona} /> : null}
       {tab === "auditar" ? <AuditTab acc={acc} /> : null}
       {tab === "termometro" ? <ThermoTab /> : null}
@@ -174,7 +182,7 @@ function IcpTab({ acc, all, onPick }: { acc?: EnrichedAccount; all: EnrichedAcco
                   {([["Sim", true], ["Não", false]] as const).map(([l, v]) => (
                     <button key={l} type="button" aria-pressed={c[q.key] === v} onClick={() => set(q.key, c[q.key] === v ? undefined : v)}
                       className={cn("rounded-md px-2.5 py-1 text-xs font-semibold",
-                        c[q.key] === v ? (v ? "bg-emerald-600 text-white" : "bg-red-600 text-white") : "bg-slate-800 text-slate-300")}>
+                        c[q.key] === v ? (v ? "bg-emerald-600 text-onaccent" : "bg-red-600 text-onaccent") : "bg-slate-800 text-slate-300")}>
                       {l}
                     </button>
                   ))}

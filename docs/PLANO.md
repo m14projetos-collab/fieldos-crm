@@ -121,3 +121,12 @@ desenvolvimento bloqueia; no celular funcionam, e se falharem o app cai para lin
   contas; acima disso, mover listas para consultas paginadas.
 - `npm audit` aponta vulnerabilidade no PostCSS embutido no Next 15 (afeta o build, não o app em produção).
   A correção oficial exige Next 16; mantido o 15 conforme o pedido.
+
+## M14 OS (29/10/2026)
+- Paleta M14 (bg #0B0F19, superfícies #111624/#151C2C, bordas #1E273B; Crimson #E11D48 ações, Gold #F59E0B check-in/horários, Emerald #10B981 WhatsApp/score alto/fechado) via variáveis em `globals.css`; ☀️ Daylight em `:root[data-theme="light"]`, salvo por aparelho.
+- 5 abas oficiais (Hoje, CRM, Rotas, CHAVE, Performance); Integrações em seção secundária e no menu da conta.
+- `components/crm/lead-controls.tsx`: etapa (pílulas, mesmas regras do funil via useMover), sistema atual, temperatura (🔥→☀️→❄️), MRR 349/489/649, WA, Check-in (cria visita não planejada se não houver), Ficha 360º.
+- Hoje: 6 KPIs, próxima visita (ou próximo da fila) com controles, agenda com controles compactos, follow-ups e Radar de Governança.
+- CRM: ⚡ Visão Rápida, Tabela Completa (temperatura e sistema inline), Pipeline & Prospecção, Regiões, Recuperação (+15d/+30d sem contato) & Onboarding pós-venda + perdidos.
+- Ficha 360º: no desktop ≥1280px vira painel fixo à direita (não modal; o conteúdo encolhe via container queries); aba lateral reabre a última ficha.
+- CHAVE: aba Ancoragem de dor (simulação sem lead; salva no card com lead). Rotas: "Otimizar ordem (Auto-Cluster)" + malha geográfica SVG. Performance: barras em gradiente e MRR por bairro.

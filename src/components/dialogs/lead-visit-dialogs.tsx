@@ -164,7 +164,7 @@ export function ScheduleVisitDialog() {
         <div className="flex flex-wrap gap-1.5">
           {TYPES.map((t) => (
             <button key={t} type="button" onClick={() => setType(t)}
-              className={cn("rounded-md px-2.5 py-1.5 text-xs font-semibold", type === t ? "bg-brand-600 text-white" : "bg-slate-800 text-slate-300")}>
+              className={cn("rounded-md px-2.5 py-1.5 text-xs font-semibold", type === t ? "bg-brand-600 text-onaccent" : "bg-slate-800 text-slate-300")}>
               {VISIT_TYPE_LABEL[t]}
             </button>
           ))}

@@ -1,7 +1,7 @@
 "use client";
 // CRM: uma base (accounts) e quatro visões. Nada aqui grava direto: movimentos passam
 // pelas RPCs (move_opportunity / set_account_status) via useMover.
-import { AlertTriangle, ArrowDownUp, Clock, LayoutList, MapPinned, Search, Target, TrendingUp, Workflow } from "lucide-react";
+import { AlertTriangle, ArrowDownUp, Clock, LayoutList, MapPinned, RefreshCw, Search, Target, TrendingUp, Workflow, Zap } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge, Card, cn, scoreColor } from "@/components/ui/primitives";
 import { useEnriched, useRepo, useSnapshot } from "@/lib/data/hooks";
@@ -16,13 +16,15 @@ import { useUi } from "@/lib/ui-store";
 import { QuickMrr, needsMrr } from "./quick-mrr";
 import { BulkBar } from "./bulk-bar";
 import { useMover } from "./move-dialog";
+import { LeadControls, SystemSelect, TempPill } from "./lead-controls";
 
-type Tab = "tabela" | "prospeccao" | "pipeline" | "regioes";
+type Tab = "rapida" | "tabela" | "pipeline" | "regioes" | "recuperacao";
 const TABS: { id: Tab; label: string; icon: typeof LayoutList }[] = [
-  { id: "tabela", label: "Tabela", icon: LayoutList },
-  { id: "prospeccao", label: "Prospecção", icon: Workflow },
-  { id: "pipeline", label: "Pipeline", icon: TrendingUp },
+  { id: "rapida", label: "⚡ Visão Rápida", icon: Zap },
+  { id: "tabela", label: "Tabela Completa", icon: LayoutList },
+  { id: "pipeline", label: "Pipeline & Prospecção", icon: TrendingUp },
   { id: "regioes", label: "Regiões", icon: MapPinned },
+  { id: "recuperacao", label: "Recuperação & Onboarding", icon: RefreshCw },
 ];
 
 /** Dias parado na etapa a partir do qual o card fica âmbar (deal "esfriando"). */
@@ -42,7 +44,8 @@ const PROSPECT_COLUMNS: { id: AccountStatus; label: string; members: AccountStat
 ];
 
 export function CrmView() {
-  const [tab, setTab] = useState<Tab>("tabela");
+  const [tab, setTab] = useState<Tab>("rapida");
+  const [board, setBoard] = useState<"prospeccao" | "oportunidades">("prospeccao");
   const [q, setQ] = useState("");
   const [bairro, setBairro] = useState("");
   const [onlyNoAction, setOnlyNoAction] = useState(false);
@@ -75,9 +78,9 @@ export function CrmView() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-extrabold text-white">CRM &amp; Pipeline</h1>
-          <p className="text-xs text-slate-400">{all.length} contas · uma base só, quatro visões. Arraste ou use o menu do card para mover.</p>
+          <p className="text-xs text-slate-400">{all.length} contas · uma base só, cinco visões. Tudo editável com 1 clique, sem abrir a ficha.</p>
         </div>
-        <div role="tablist" className="flex gap-1 rounded-xl border border-slate-800 bg-slate-900 p-1">
+        <div role="tablist" className="-mx-1 flex max-w-full gap-1 overflow-x-auto rounded-xl border border-slate-800 bg-slate-900 p-1">
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -86,17 +89,17 @@ export function CrmView() {
               aria-selected={tab === t.id}
               onClick={() => setTab(t.id)}
               className={cn(
-                "flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold",
-                tab === t.id ? "bg-brand-600 text-white" : "text-slate-400 hover:text-slate-200",
+                "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold",
+                tab === t.id ? "bg-brand-600 text-onaccent" : "text-slate-400 hover:text-slate-200",
               )}
             >
-              <t.icon size={14} /> {t.label}
+              {t.id !== "rapida" ? <t.icon size={14} /> : null} {t.label}
             </button>
           ))}
         </div>
       </div>
 
-      {tab !== "regioes" ? (
+      {tab !== "regioes" && tab !== "recuperacao" ? (
         <div className="flex flex-wrap gap-2">
           <label className="flex min-w-48 flex-1 items-center gap-2 rounded-lg border border-slate-800 bg-slate-900 px-3 py-2 text-sm">
             <Search size={14} className="text-slate-500" />
@@ -133,15 +136,28 @@ export function CrmView() {
         </div>
       ) : null}
 
+      {tab === "rapida" ? <QuickView rows={filtered} opps={data.opportunities} today={today} /> : null}
       {tab === "tabela" ? <AccountsTable rows={filtered} today={today} /> : null}
-      {tab === "prospeccao" ? <ProspectBoard rows={filtered} today={today} /> : null}
       {tab === "pipeline" ? (
-        <PipelineBoard
-          opps={data.opportunities.filter((o) => filtered.some((a) => a.id === o.account_id))}
-          enriched={enriched}
-          today={today}
-        />
+        <div className="space-y-3">
+          <div role="group" aria-label="Quadro" className="inline-flex gap-1 rounded-lg border border-slate-800 bg-slate-900 p-1 text-xs font-semibold">
+            {([["prospeccao", "Prospecção (contas)", Workflow], ["oportunidades", "Pipeline (oportunidades)", TrendingUp]] as const).map(([id, label, Icon]) => (
+              <button key={id} type="button" aria-pressed={board === id} onClick={() => setBoard(id)}
+                className={cn("flex items-center gap-1.5 rounded-md px-3 py-1.5", board === id ? "bg-slate-700 text-white" : "text-slate-400 hover:text-slate-200")}>
+                <Icon size={13} /> {label}
+              </button>
+            ))}
+          </div>
+          {board === "prospeccao" ? <ProspectBoard rows={filtered} today={today} /> : (
+            <PipelineBoard
+              opps={data.opportunities.filter((o) => filtered.some((a) => a.id === o.account_id))}
+              enriched={enriched}
+              today={today}
+            />
+          )}
+        </div>
       ) : null}
+      {tab === "recuperacao" ? <RecoveryView rows={all} opps={data.opportunities} today={today} /> : null}
       {tab === "regioes" ? (
         <RegionsView
           rows={all}
@@ -230,7 +246,12 @@ function AccountsTable({ rows, today }: { rows: EnrichedAccount[]; today: string
                     <div className="truncate font-semibold text-slate-100">{a.name}</div>
                     <div className="truncate text-[11px] text-slate-500">{a.segment ?? "—"}</div>
                   </td>
-                  <td className="px-2 py-2.5"><Badge>{ACCOUNT_STATUS_LABEL[a.status]}</Badge></td>
+                  <td className="px-2 py-2.5">
+                    <div className="flex flex-col items-start gap-1">
+                      <Badge>{ACCOUNT_STATUS_LABEL[a.status]}</Badge>
+                      <TempPill acc={a} />
+                    </div>
+                  </td>
                   <td className="px-2 py-2.5 text-center">
                     <span className={cn("rounded-md px-1.5 py-0.5 font-mono font-bold", scoreColor(a.commercial_score))}>{a.commercial_score}</span>
                   </td>
@@ -247,7 +268,7 @@ function AccountsTable({ rows, today }: { rows: EnrichedAccount[]; today: string
                     )}
                   </td>
                   <td className="px-2 py-2.5 text-slate-300">{a.neighborhood ?? "—"}</td>
-                  <td className="px-2 py-2.5 text-slate-400">{a.current_system ?? "—"}</td>
+                  <td className="px-2 py-2.5" onClick={(e) => e.stopPropagation()}><SystemSelect acc={a} /></td>
                   <td className="px-2 py-2.5 text-right font-mono text-slate-300">
                     {a.mrr_closed ? brl(a.mrr_closed) : a.mrr_open ? <span className="text-slate-500">{brl(a.mrr_open)}</span> : "—"}
                   </td>
@@ -604,6 +625,121 @@ function RegionsView({ rows, opps, onPick }: { rows: EnrichedAccount[]; opps: Op
             </button>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ⚡ Visão Rápida: cards com todos os controles de 1 clique abertos
+// ---------------------------------------------------------------------------
+const QUICK_LIMIT = 24;
+
+function QuickView({ rows, opps, today }: { rows: EnrichedAccount[]; opps: Opportunity[]; today: string }) {
+  const openDrawer = useUi((s) => s.openDrawer);
+  const [limit, setLimit] = useState(QUICK_LIMIT);
+  const [hideDone, setHideDone] = useState(true);
+  const openOpp = useMemo(() => {
+    const m = new Map<string, Opportunity>();
+    for (const o of opps) if (o.stage !== "fechado" && o.stage !== "perdido" && !m.has(o.account_id)) m.set(o.account_id, o);
+    return m;
+  }, [opps]);
+  const sorted = useMemo(() => {
+    const due = (a: EnrichedAccount) => a.next_followup?.due_date ?? "9999";
+    return rows
+      .filter((a) => !hideDone || (a.status !== "fechado" && a.status !== "perdido"))
+      .sort((a, b) => due(a).localeCompare(due(b)) || b.commercial_score - a.commercial_score);
+  }, [rows, hideDone]);
+  return (
+    <div className="space-y-3">
+      <label className="flex items-center gap-2 text-xs text-slate-400">
+        <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} /> Esconder fechados e perdidos
+        <span className="text-slate-500">· {sorted.length} conta(s), próxima ação primeiro</span>
+      </label>
+      <ul className="grid grid-cols-1 gap-3 @3xl:grid-cols-2">
+        {sorted.slice(0, limit).map((a) => {
+          const fu = a.next_followup;
+          return (
+            <li key={a.id} className="min-w-0 space-y-2.5 rounded-xl border border-slate-800 bg-slate-900 p-3.5">
+              <div className="flex items-start justify-between gap-2">
+                <button type="button" onClick={() => openDrawer(a.id)} className="min-w-0 text-left">
+                  <div className="truncate text-sm font-bold text-white underline decoration-slate-600 decoration-dotted underline-offset-2 hover:text-brand-300">{a.name}</div>
+                  <div className="truncate text-[11px] text-slate-500">{[a.neighborhood ?? "sem bairro", a.segment].filter(Boolean).join(" · ")}</div>
+                </button>
+                <span className={cn("shrink-0 rounded-md px-1.5 py-0.5 font-mono text-xs font-bold", scoreColor(a.commercial_score))}>{a.commercial_score}</span>
+              </div>
+              <div className={cn("truncate text-[11px]", fu && fu.due_date < today ? "text-red-300" : fu?.due_date === today ? "text-amber-300" : "text-slate-400")}>
+                {fu ? `${relativeDayLabel(fu.due_date, today)}: ${fu.title}` : a.missing_field === "follow_up" ? "⚠️ Sem próxima ação" : NEXT_BEST_ACTION_LABEL[a.next_best_action]}
+              </div>
+              <LeadControls acc={a} openOpp={openOpp.get(a.id)} />
+            </li>
+          );
+        })}
+      </ul>
+      {sorted.length > limit ? (
+        <button type="button" onClick={() => setLimit((l) => l + QUICK_LIMIT)} className="w-full rounded-xl border border-slate-800 py-3 text-xs font-semibold text-brand-300 hover:bg-slate-800/40">
+          Mostrar mais ({sorted.length - limit})
+        </button>
+      ) : null}
+      {!sorted.length ? <p className="p-6 text-center text-sm text-slate-500">Nenhuma conta com esse filtro.</p> : null}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 🔄 Recuperação (+15d / +30d sem contato) & Onboarding pós-venda
+// ---------------------------------------------------------------------------
+function RecoveryView({ rows, opps, today }: { rows: EnrichedAccount[]; opps: Opportunity[]; today: string }) {
+  const openDrawer = useUi((s) => s.openDrawer);
+  const openOpp = new Map<string, Opportunity>();
+  for (const o of opps) if (o.stage !== "fechado" && o.stage !== "perdido" && !openOpp.has(o.account_id)) openOpp.set(o.account_id, o);
+  // dias sem contato: última interação, ou primeiro contato; contas nunca tocadas ficam de fora (são prospecção, não recuperação)
+  const idle = (a: EnrichedAccount) => {
+    const ref = a.last_interaction_at ?? a.first_contact_date;
+    return ref ? diffDays(ref.length > 10 ? dateInTz(ref) : ref, today) : null;
+  };
+  const active = rows.filter((a) => a.status !== "fechado" && a.status !== "perdido");
+  const d30 = active.filter((a) => (idle(a) ?? 0) >= 30).sort((a, b) => (idle(b) ?? 0) - (idle(a) ?? 0));
+  const d15 = active.filter((a) => { const d = idle(a) ?? 0; return d >= 15 && d < 30; }).sort((a, b) => (idle(b) ?? 0) - (idle(a) ?? 0));
+  const lost = rows.filter((a) => a.status === "perdido");
+  const closedAt = new Map<string, string>();
+  for (const o of opps) if (o.stage === "fechado" && o.closed_at && (closedAt.get(o.account_id) ?? "") < o.closed_at) closedAt.set(o.account_id, o.closed_at);
+  const onboarding = rows
+    .filter((a) => a.status === "fechado")
+    .map((a) => ({ a, days: closedAt.has(a.id) ? diffDays(dateInTz(closedAt.get(a.id)!), today) : null }))
+    .sort((x, y) => (x.days ?? 999) - (y.days ?? 999));
+
+  const Row = ({ a, right }: { a: EnrichedAccount; right: string }) => (
+    <li className="space-y-2 rounded-xl border border-slate-800 bg-slate-950/50 p-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <button type="button" onClick={() => openDrawer(a.id)} className="min-w-0 text-left">
+          <div className="truncate text-sm font-semibold text-white underline decoration-slate-600 decoration-dotted underline-offset-2">{a.name}</div>
+          <div className="truncate text-[11px] text-slate-500">{ACCOUNT_STATUS_LABEL[a.status]} · {a.neighborhood ?? "sem bairro"}</div>
+        </button>
+        <span className="shrink-0 whitespace-nowrap font-mono text-[11px] font-bold text-amber-300">{right}</span>
+      </div>
+      <LeadControls acc={a} openOpp={openOpp.get(a.id)} compact />
+    </li>
+  );
+  const Col = ({ title, hint, items, tone }: { title: string; hint: string; items: React.ReactNode[]; tone: string }) => (
+    <Card className={cn("min-w-0", tone)}>
+      <h2 className="text-sm font-bold text-white">{title} <span className="font-mono text-slate-400">({items.length})</span></h2>
+      <p className="mb-3 text-[11px] text-slate-500">{hint}</p>
+      {items.length ? <ul className="space-y-2">{items.slice(0, 30)}</ul> : <p className="text-sm text-slate-500">Nada aqui. 👏</p>}
+      {items.length > 30 ? <p className="mt-2 text-center text-[11px] text-slate-500">+{items.length - 30} — use a Tabela, ordenada por “sem contato há mais tempo”</p> : null}
+    </Card>
+  );
+  return (
+    <div className="grid grid-cols-1 gap-4 @2xl:grid-cols-2 @5xl:grid-cols-3">
+      <Col title="🔥 +30 dias sem contato" hint="Esfriou. Reative com WhatsApp de valor ou visita surpresa." tone="border-red-500/30"
+        items={d30.map((a) => <Row key={a.id} a={a} right={`${idle(a)}d`} />)} />
+      <Col title="⏳ +15 dias sem contato" hint="Ainda dá tempo: um toque agora evita a perda." tone="border-amber-500/30"
+        items={d15.map((a) => <Row key={a.id} a={a} right={`${idle(a)}d`} />)} />
+      <div className="space-y-4">
+        <Col title="🚀 Onboarding pós-venda" hint="Clientes fechados: check-in de 7 dias, depois 30 dias. Cliente bem ativado não cancela." tone="border-emerald-500/30"
+          items={onboarding.map(({ a, days }) => <Row key={a.id} a={a} right={days === null ? "cliente" : days === 0 ? "hoje" : `há ${days}d`} />)} />
+        <Col title="♻️ Perdidos (recuperação 90 dias)" hint="Motivo registrado na ficha. Reabra mudando a etapa." tone=""
+          items={lost.map((a) => <Row key={a.id} a={a} right={a.loss_reason ? lossLabel(a.loss_reason) : "perdido"} />)} />
       </div>
     </div>
   );

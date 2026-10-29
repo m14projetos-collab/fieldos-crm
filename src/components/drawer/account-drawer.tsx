@@ -26,6 +26,7 @@ import { WaTemplates } from "@/components/integrations/wa-templates";
 
 export function AccountDrawer() {
   const { drawerAccountId, closeDrawer, openSchedule } = useUi();
+  const docked = useDocked();
   const { data } = useSnapshot();
   const enriched = useEnriched(data);
   const { session } = useRepo();
@@ -44,10 +45,16 @@ export function AccountDrawer() {
   const phone = acc ? (acc.phone || acc.whatsapp || "").replace(/\D/g, "") : "";
 
   return (
-    <Dialog.Root open={!!acc} onOpenChange={(o) => !o && closeDrawer()}>
+    // Desktop largo (xl): inspetor fixo à direita, sem modal, o conteúdo encolhe e segue clicável (trocar de lead troca a ficha).
+    // Celular/tablet: gaveta modal por cima.
+    <Dialog.Root open={!!acc} modal={!docked} onOpenChange={(o) => !o && closeDrawer()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="anim-fade fixed inset-0 z-40 bg-black/50" />
-        <Dialog.Content className="anim-drawer fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col border-l border-slate-800 bg-slate-950 shadow-2xl">
+        {!docked ? <Dialog.Overlay className="anim-fade fixed inset-0 z-40 bg-black/50" /> : null}
+        <Dialog.Content
+          onInteractOutside={(e) => { if (docked) e.preventDefault(); }}
+          onOpenAutoFocus={(e) => { if (docked) e.preventDefault(); }}
+          className={cn("anim-drawer fixed right-0 z-40 flex w-full max-w-md flex-col border-l border-slate-800 bg-slate-950 shadow-2xl",
+            docked ? "inset-y-0 shadow-none" : "inset-y-0")}>
           {acc ? (
             <>
               <header className="flex items-start gap-3 border-b border-slate-800 p-4">
@@ -244,5 +251,31 @@ function AccountData({ acc }: { acc: Account }) {
         </dl>
       )}
     </section>
+  );
+}
+
+/** true em telas ≥ 1280px: a ficha 360º vira painel fixo à direita. */
+export function useDocked() {
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1280px)");
+    const on = () => setWide(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return wide;
+}
+
+/** Aba lateral sempre visível no desktop largo: reabre a última ficha. */
+export function InspectorTab() {
+  const { drawerAccountId, lastDrawerAccountId, openDrawer, setPalette } = useUi();
+  if (drawerAccountId) return null;
+  return (
+    <button type="button" onClick={() => (lastDrawerAccountId ? openDrawer(lastDrawerAccountId) : setPalette(true))}
+      title={lastDrawerAccountId ? "Reabrir a última ficha" : "Buscar um restaurante para abrir a ficha"}
+      className="fixed right-0 top-1/2 z-30 hidden -translate-y-1/2 rounded-l-lg border border-r-0 border-slate-700 bg-slate-900 px-1.5 py-3 text-[11px] font-semibold text-slate-300 shadow-lg [writing-mode:vertical-rl] hover:text-white xl:block">
+      Ficha 360º
+    </button>
   );
 }

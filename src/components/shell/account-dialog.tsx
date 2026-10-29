@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/primitives";
@@ -50,6 +51,10 @@ export function AccountDialog({ open, onOpenChange, userName }: { open: boolean;
 
   return (
     <Modal open={open} onOpenChange={onOpenChange} title="Minha conta" description={userName}>
+      <Link href="/integracoes" onClick={() => onOpenChange(false)}
+        className="mb-4 flex items-center justify-between rounded-lg border border-slate-800 px-3 py-2 text-sm text-slate-200 hover:border-slate-600">
+        🔌 Integrações & automações <span className="text-slate-500">›</span>
+      </Link>
       {isAdmin ? (
         <form className="mb-5 space-y-2 border-b border-slate-800 pb-4" onSubmit={(e) => { e.preventDefault(); void saveOrg(); }}>
           <div className="text-xs font-semibold text-slate-300">Nome da empresa (aparece nos scripts de WhatsApp)</div>
