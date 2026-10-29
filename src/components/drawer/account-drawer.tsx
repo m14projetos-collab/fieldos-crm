@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { icpResult } from "@/lib/domain/chave";
 import { FollowUpRow } from "@/components/hoje/follow-up-row";
 import { Badge, Button, SectionTitle, cn, scoreColor } from "@/components/ui/primitives";
-import { cadenceScript, followUpScript, mapsLink, waLink, waNumber } from "@/lib/domain/cadence";
+import { cadenceScript, followUpScript, waLink, waNumber } from "@/lib/domain/cadence";
 import {
   ACCOUNT_STATUS_LABEL, INTEREST_LABEL, MISSING_FIELD_LABEL, NEXT_BEST_ACTION_LABEL, OUTCOME_LABEL, PERSONA_LABEL,
   PRIORITY_LABEL, VISIT_TYPE_LABEL,
@@ -17,9 +17,12 @@ import type { EnrichedAccount } from "@/lib/domain/enrich";
 import type { Account, Interest, Persona, Priority } from "@/lib/domain/types";
 import { useActions, useEnriched, useRepo, useScriptCtx, useSnapshot } from "@/lib/data/hooks";
 import { useUi } from "@/lib/ui-store";
+import { useNavApp } from "@/lib/data/settings";
+import { navLink } from "@/lib/domain/integrations";
 import { PainCalculator } from "./pain-calculator";
 import { PipelinePanel } from "./pipeline-panel";
 import { RecommendedScript } from "./recommended-script";
+import { WaTemplates } from "@/components/integrations/wa-templates";
 
 export function AccountDrawer() {
   const { drawerAccountId, closeDrawer, openSchedule } = useUi();
@@ -27,6 +30,7 @@ export function AccountDrawer() {
   const enriched = useEnriched(data);
   const { session } = useRepo();
   const sctx = useScriptCtx();
+  const navApp = useNavApp((x) => x.app);
   const acc = drawerAccountId ? (enriched.get(drawerAccountId) as EnrichedAccount | undefined) : undefined;
   const tz = session.timezone;
   const today = dateInTz(new Date(), tz);
@@ -83,11 +87,15 @@ export function AccountDrawer() {
                     <a href={`tel:${phone}`} className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-800/70 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700"><Phone size={15} /> Ligar</a>
                   ) : <Button disabled><Phone size={15} /> Sem telefone</Button>}
                   <Button onClick={() => openSchedule(acc.id)}><CalendarPlus size={15} /> Agendar visita</Button>
-                  {mapsLink(acc) ? (
-                    <a href={mapsLink(acc)!} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-800/70 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700"><Navigation size={15} /> Mapa</a>
+                  {navLink(navApp, acc) ? (
+                    <a href={navLink(navApp, acc)!} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-slate-800/70 px-3 py-2 text-sm font-semibold text-slate-200 hover:bg-slate-700"><Navigation size={15} /> Mapa</a>
                   ) : <Button disabled><Navigation size={15} /> Sem endereço</Button>}
                 </div>
                 {wa ? <p className="rounded-lg bg-slate-900 p-2.5 text-[11px] leading-relaxed text-slate-400">“{script}”</p> : null}
+                <details className="rounded-lg bg-slate-900/60 p-2">
+                  <summary className="cursor-pointer text-[11px] font-semibold text-slate-300">💬 Outros modelos de WhatsApp</summary>
+                  <div className="mt-2"><WaTemplates acc={acc} /></div>
+                </details>
 
                 <section>
                   <SectionTitle>Próxima ação (follow-up)</SectionTitle>

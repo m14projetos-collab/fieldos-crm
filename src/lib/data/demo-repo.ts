@@ -10,6 +10,7 @@ import {
 import {
   applyDeleteGoal, applyDeletePlaybook, applySaveDailyLog, applySaveGoal, applySavePlaybook, applyUpdateOpportunity, pickOpp,
 } from "@/lib/domain/records";
+import type { OrgSettings } from "@/lib/domain/integrations";
 import type { Session, Snapshot } from "@/lib/domain/types";
 import { DEMO_ORG, DEMO_USER, buildDemoSnapshot } from "./demo-seed";
 import { type Repo, pickUpdatable } from "./repo";
@@ -132,6 +133,20 @@ export class DemoRepo implements Repo {
   }
   async updateOrgName(name: string) {
     this.session = { ...this.session, orgName: `${name.trim()} (demo)` };
+  }
+  async loadOrgSettings(): Promise<OrgSettings> {
+    try {
+      return JSON.parse(localStorage.getItem(`${KEY}:settings`) ?? "{}") as OrgSettings;
+    } catch {
+      return {};
+    }
+  }
+  async saveOrgSettings(settings: OrgSettings) {
+    try {
+      localStorage.setItem(`${KEY}:settings`, JSON.stringify(settings));
+    } catch {
+      /* navegador sem armazenamento: fica só na memória da tela */
+    }
   }
   subscribe(onChange: () => void) {
     this.listeners.add(onChange);

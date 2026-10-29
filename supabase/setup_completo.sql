@@ -1,6 +1,3 @@
--- FieldOS CRM: setup completo (concatena supabase/migrations/ em ordem). Rode UMA vez num projeto novo, no SQL Editor.
-
--- >>> supabase/migrations/20261029000100_core_schema.sql
 -- ============================================================================
 -- FieldOS CRM — 0001 Core schema (multi-tenant por org_id)
 -- Base: arquitetura_crm_saas_e_prompt_claude.md (schema v0), com ajustes:
@@ -307,8 +304,6 @@ create table public.playbooks (
 );
 create trigger playbooks_updated_at before update on public.playbooks
   for each row execute function public.tg_set_updated_at();
-
--- >>> supabase/migrations/20261029000200_rls_multitenant.sql
 -- ============================================================================
 -- FieldOS CRM — 0002 Row-Level Security multi-tenant
 -- Regra: um usuário autenticado só enxerga e escreve linhas da própria org.
@@ -467,8 +462,6 @@ $$;
 
 revoke all on function public.create_organization(text, text, text) from public;
 grant execute on function public.create_organization(text, text, text) to authenticated;
-
--- >>> supabase/migrations/20261029000300_views.sql
 -- ============================================================================
 -- FieldOS CRM — 0003 Views calculadas (zero digitação manual)
 -- security_invoker = true: a view respeita o RLS de quem consulta.
@@ -625,8 +618,6 @@ select
   end, 0)::numeric(12, 2) as actual_value
 from public.goals g
 join public.organizations o on o.id = g.org_id;
-
--- >>> supabase/migrations/20261029000400_rpc_quick_actions.sql
 -- ============================================================================
 -- FieldOS CRM — 0004 Ações rápidas atômicas (RPC)
 -- Todas são SECURITY INVOKER: rodam com o RLS do usuário logado.
@@ -1004,8 +995,6 @@ grant execute on function public.log_visit_outcome(uuid, text, int, text, text) 
 grant execute on function public.complete_follow_up(uuid, text, int, text, text) to authenticated;
 grant execute on function public.create_lead(text, text, text, text, text, text, uuid) to authenticated;
 grant execute on function public.schedule_visit(uuid, timestamptz, text, int, uuid) to authenticated;
-
--- >>> supabase/migrations/20261029000500_realtime.sql
 -- ============================================================================
 -- FieldOS CRM — 0005 Realtime: o app invalida o cache quando algo muda
 -- (o RLS continua valendo para as mensagens de realtime)
@@ -1018,8 +1007,6 @@ begin
   end if;
 end;
 $$;
-
--- >>> supabase/migrations/20261029000600_hardening.sql
 -- FieldOS CRM — 0006 Endurecimento (achados do Security Advisor do Supabase)
 --
 -- 1) search_path fixo em todas as funções (lint 0011). Os corpos já usam nomes
@@ -1099,8 +1086,6 @@ create index if not exists routes_owner_idx              on public.routes(owner_
 create index if not exists visits_account_org_idx        on public.visits(account_id, org_id);
 create index if not exists visits_owner_idx              on public.visits(owner_id);
 create index if not exists visits_route_org_idx          on public.visits(route_id, org_id);
-
--- >>> supabase/migrations/20261029000700_org_invites.sql
 -- FieldOS CRM — 0007 Convites por e-mail
 -- O admin cadastra e-mails da equipe. Quando a pessoa entra pela primeira vez com esse e-mail,
 -- accept_invite() cria o perfil dela na org do convite (em vez da tela "criar organização").
@@ -1181,8 +1166,6 @@ do $$ begin
   end if;
 end $$;
 grant execute on function public.accept_invite() to authenticated;
-
--- >>> supabase/migrations/20261029000800_anon_tables.sql
 -- FieldOS CRM — 0008 Visitante sem login (anon) sem acesso às tabelas e views.
 -- O RLS já devolvia zero linhas para o anon (as policies são "to authenticated"); isto fecha a porta
 -- também no nível de permissão, como segunda camada.
@@ -1196,8 +1179,6 @@ begin
   end if;
 end;
 $$;
-
--- >>> supabase/migrations/20261029000900_pipeline_routes.sql
 -- ============================================================================
 -- FieldOS CRM — 0009 Fase 2: Pipeline (Kanban), status da conta e Rotas
 -- Tudo aditivo: nenhuma coluna removida, nenhuma regra antiga alterada.
@@ -1698,8 +1679,6 @@ begin
   end if;
 end;
 $$;
-
--- >>> supabase/migrations/20261029001000_goal_periods.sql
 -- ============================================================================
 -- FieldOS CRM — 0010 Metas recorrentes: o realizado é do período ATUAL
 -- Antes: uma meta "diária" válida por 1 ano somava o ano inteiro.
@@ -1759,3 +1738,130 @@ select
   w.p_start as period_start,
   w.p_end as period_end
 from w;
+-- 0011: webhooks de saída (Make / n8n / Zapier) disparados pelo banco.
+-- Eventos: visit.checkin (visita realizada), proposal.sent (proposta enviada), deal.won (venda fechada).
+-- A configuração fica em organizations.settings->'webhook' = {"enabled": true, "url": "https://...", "events": [...]},
+-- gravada pela tela Integrações (só admin, pela RLS org_update).
+-- Envio assíncrono via pg_net: não atrasa nem derruba a transação do vendedor; falha de rede só fica no log do pg_net.
+
+do $$
+begin
+  create extension if not exists pg_net;
+exception when others then
+  -- Postgres local de teste não tem pg_net: o teste cria um stub em net.http_post.
+  raise notice 'pg_net indisponível: %', sqlerrm;
+end
+$$;
+
+-- URL aceita: https, host público (sem localhost, .local ou faixas de rede interna).
+create or replace function public.webhook_url_ok(p_url text)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select p_url ~ '^https://[A-Za-z0-9.-]+\.[A-Za-z]{2,}(:[0-9]+)?(/.*)?$'
+     and p_url !~* '^https://(localhost|[^/]*\.local|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2[0-9]|3[01])\.)';
+$$;
+revoke all on function public.webhook_url_ok(text) from public, anon, authenticated;
+
+create or replace function public.emit_webhook(p_org uuid, p_event text, p_data jsonb)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_cfg jsonb;
+  v_url text;
+begin
+  select o.settings -> 'webhook' into v_cfg from public.organizations o where o.id = p_org;
+  if v_cfg is null or coalesce((v_cfg ->> 'enabled')::boolean, false) is false then
+    return;
+  end if;
+  v_url := v_cfg ->> 'url';
+  if v_url is null or not public.webhook_url_ok(v_url) then
+    return;
+  end if;
+  if not coalesce(v_cfg -> 'events' ? p_event, false) then
+    return;
+  end if;
+  begin
+    perform net.http_post(
+      url := v_url,
+      body := jsonb_build_object('event', p_event, 'occurred_at', now(), 'org_id', p_org) || p_data,
+      headers := jsonb_build_object('Content-Type', 'application/json', 'User-Agent', 'FieldOS-CRM/1.0')
+    );
+  exception when others then
+    -- webhook nunca pode impedir o check-in ou o fechamento
+    raise warning 'emit_webhook(%): %', p_event, sqlerrm;
+  end;
+end;
+$$;
+revoke all on function public.emit_webhook(uuid, text, jsonb) from public, anon, authenticated;
+
+create or replace function public.webhook_account(p_account uuid)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'id', a.id, 'name', a.name, 'status', a.status, 'neighborhood', a.neighborhood, 'region', a.region,
+    'phone', a.phone, 'whatsapp', a.whatsapp, 'current_system', a.current_system, 'persona', a.persona,
+    'decision_maker_name', a.decision_maker_name
+  )
+  from public.accounts a where a.id = p_account;
+$$;
+revoke all on function public.webhook_account(uuid) from public, anon, authenticated;
+
+create or replace function public.tg_webhook_visit()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.status = 'realizada' and old.status is distinct from 'realizada' then
+    perform public.emit_webhook(new.org_id, 'visit.checkin', jsonb_build_object(
+      'visit', jsonb_build_object('id', new.id, 'scheduled_at', new.scheduled_at, 'completed_at', new.completed_at,
+                                  'visit_type', new.visit_type, 'outcome', new.outcome, 'notes', new.checkin_notes),
+      'account', public.webhook_account(new.account_id)));
+  end if;
+  return new;
+end;
+$$;
+
+create or replace function public.tg_webhook_opportunity()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_opp jsonb := jsonb_build_object('id', new.id, 'title', new.title, 'stage', new.stage, 'mrr_value', new.mrr_value,
+                                    'plan_name', new.plan_name, 'proposal_sent_at', new.proposal_sent_at, 'closed_at', new.closed_at);
+begin
+  if new.proposal_sent_at is not null and (tg_op = 'INSERT' or old.proposal_sent_at is null) then
+    perform public.emit_webhook(new.org_id, 'proposal.sent',
+      jsonb_build_object('opportunity', v_opp, 'account', public.webhook_account(new.account_id)));
+  end if;
+  if new.stage = 'fechado' and (tg_op = 'INSERT' or old.stage is distinct from 'fechado') then
+    perform public.emit_webhook(new.org_id, 'deal.won',
+      jsonb_build_object('opportunity', v_opp, 'account', public.webhook_account(new.account_id)));
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists visits_webhook on public.visits;
+create trigger visits_webhook after update of status on public.visits
+  for each row execute function public.tg_webhook_visit();
+
+drop trigger if exists opportunities_webhook on public.opportunities;
+create trigger opportunities_webhook after insert or update of stage, proposal_sent_at on public.opportunities
+  for each row execute function public.tg_webhook_opportunity();
+
+revoke all on function public.tg_webhook_visit() from public, anon, authenticated;
+revoke all on function public.tg_webhook_opportunity() from public, anon, authenticated;

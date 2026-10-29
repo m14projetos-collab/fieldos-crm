@@ -1,4 +1,5 @@
 // Modo Supabase: leituras com RLS + ações rápidas via RPC atômica (regras no banco).
+import type { OrgSettings } from "@/lib/domain/integrations";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   Account, DailyLog, FollowUp, Goal, Opportunity, Playbook, Route, Session, Snapshot, Visit,
@@ -167,6 +168,17 @@ export class SupabaseRepo implements Repo {
   async deletePlaybook(id: string) {
     const { error } = await this.sb.from("playbooks").delete().eq("id", id);
     mapError(error);
+  }
+  async loadOrgSettings(): Promise<OrgSettings> {
+    const { data, error } = await this.sb.from("organizations").select("settings").eq("id", this.session.orgId).maybeSingle();
+    mapError(error);
+    return ((data?.settings as OrgSettings | null) ?? {}) as OrgSettings;
+  }
+  async saveOrgSettings(settings: OrgSettings) {
+    // RLS org_update: só admin da própria org. Sem linha afetada = sem permissão.
+    const { data, error } = await this.sb.from("organizations").update({ settings }).eq("id", this.session.orgId).select("id");
+    mapError(error);
+    if (!data?.length) throw new Error("Só o administrador da empresa pode alterar as integrações.");
   }
   async updateOrgName(name: string) {
     const { error } = await this.sb.from("organizations").update({ name: name.trim() }).eq("id", this.session.orgId);

@@ -14,6 +14,7 @@ import { lossLabel } from "@/lib/domain/pipeline";
 import type { AccountStatus, OppStage, Opportunity } from "@/lib/domain/types";
 import { useUi } from "@/lib/ui-store";
 import { QuickMrr, needsMrr } from "./quick-mrr";
+import { BulkBar } from "./bulk-bar";
 import { useMover } from "./move-dialog";
 
 type Tab = "tabela" | "prospeccao" | "pipeline" | "regioes";
@@ -170,6 +171,8 @@ function AccountsTable({ rows, today }: { rows: EnrichedAccount[]; today: string
   const openDrawer = useUi((s) => s.openDrawer);
   const [sort, setSort] = useState<SortKey>("next");
   const [limit, setLimit] = useState(60);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const sorted = useMemo(() => {
     const r = [...rows];
     const due = (a: EnrichedAccount) => a.next_followup?.due_date ?? "9999";
@@ -180,10 +183,17 @@ function AccountsTable({ rows, today }: { rows: EnrichedAccount[]; today: string
     return r;
   }, [rows, sort]);
 
+  const visibleIds = sorted.slice(0, limit).map((a) => a.id);
+  const allPicked = visibleIds.length > 0 && visibleIds.every((id) => picked.has(id));
   return (
+    <>
     <Card className="p-0">
       <div className="flex items-center justify-between gap-2 border-b border-slate-800 px-4 py-2.5 text-xs text-slate-400">
-        <span>{rows.length} contas</span>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" aria-label="Selecionar todas as visíveis" checked={allPicked}
+            onChange={() => setPicked(allPicked ? new Set() : new Set(visibleIds))} />
+          {rows.length} contas{picked.size ? ` · ${picked.size} selecionada(s)` : ""}
+        </label>
         <label className="flex items-center gap-1.5">
           <ArrowDownUp size={13} /> Ordenar
           <select aria-label="Ordenar" className="rounded-md bg-slate-800 px-2 py-1 text-slate-200" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
@@ -196,6 +206,7 @@ function AccountsTable({ rows, today }: { rows: EnrichedAccount[]; today: string
         <table className="w-full text-left text-xs">
           <thead className="text-[10px] uppercase tracking-wider text-slate-500">
             <tr className="border-b border-slate-800">
+              <th className="w-8 pl-4 py-2"><span className="sr-only">Selecionar</span></th>
               <th className="px-4 py-2">Restaurante</th>
               <th className="px-2 py-2">Status</th>
               <th className="px-2 py-2 text-center">Score</th>
@@ -211,7 +222,10 @@ function AccountsTable({ rows, today }: { rows: EnrichedAccount[]; today: string
               const fu = a.next_followup;
               const late = fu && fu.due_date < today;
               return (
-                <tr key={a.id} onClick={() => openDrawer(a.id)} className="cursor-pointer border-b border-slate-800/60 hover:bg-slate-800/40">
+                <tr key={a.id} onClick={() => openDrawer(a.id)} className={cn("cursor-pointer border-b border-slate-800/60 hover:bg-slate-800/40", picked.has(a.id) && "bg-brand-600/10")}>
+                  <td className="pl-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" aria-label={`Selecionar ${a.name}`} checked={picked.has(a.id)} onChange={() => toggle(a.id)} />
+                  </td>
                   <td className="max-w-60 px-4 py-2.5">
                     <div className="truncate font-semibold text-slate-100">{a.name}</div>
                     <div className="truncate text-[11px] text-slate-500">{a.segment ?? "—"}</div>
@@ -251,8 +265,9 @@ function AccountsTable({ rows, today }: { rows: EnrichedAccount[]; today: string
         {sorted.slice(0, limit).map((a) => {
           const fu = a.next_followup;
           return (
-            <li key={a.id}>
-              <button type="button" onClick={() => openDrawer(a.id)} className="flex w-full items-start gap-3 px-4 py-3 text-left">
+            <li key={a.id} className={cn("flex items-start", picked.has(a.id) && "bg-brand-600/10")}>
+              <input type="checkbox" aria-label={`Selecionar ${a.name}`} className="ml-4 mt-4 h-4 w-4 shrink-0" checked={picked.has(a.id)} onChange={() => toggle(a.id)} />
+              <button type="button" onClick={() => openDrawer(a.id)} className="flex min-w-0 flex-1 items-start gap-3 px-3 py-3 text-left">
                 <span className={cn("mt-0.5 rounded-md px-1.5 py-0.5 font-mono text-xs font-bold", scoreColor(a.commercial_score))}>{a.commercial_score}</span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-semibold text-slate-100">{a.name}</span>
@@ -275,6 +290,8 @@ function AccountsTable({ rows, today }: { rows: EnrichedAccount[]; today: string
       ) : null}
       {!rows.length ? <p className="p-6 text-center text-sm text-slate-500">Nenhuma conta com esse filtro.</p> : null}
     </Card>
+    <BulkBar ids={[...picked]} onDone={() => setPicked(new Set())} />
+    </>
   );
 }
 

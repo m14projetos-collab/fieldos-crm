@@ -4,18 +4,21 @@ import { useMemo } from "react";
 import { FollowUpRow } from "./follow-up-row";
 import { QuickMrr, needsMrr } from "@/components/crm/quick-mrr";
 import { Badge, Button, Card, SectionTitle, cn, scoreColor } from "@/components/ui/primitives";
-import { mapsLink, preVisitScript, waLink, waNumber } from "@/lib/domain/cadence";
+import { preVisitScript, waLink, waNumber } from "@/lib/domain/cadence";
 import { ACCOUNT_STATUS_LABEL, OUTCOME_LABEL, PERSONA_LABEL, VISIT_TYPE_LABEL } from "@/lib/domain/constants";
 import { brl, timeInTz } from "@/lib/domain/dates";
 import { computeToday } from "@/lib/domain/today";
 import { useEnriched, useRepo, useScriptCtx, useSnapshot } from "@/lib/data/hooks";
 import { useUi } from "@/lib/ui-store";
+import { useNavApp } from "@/lib/data/settings";
+import { navLink } from "@/lib/domain/integrations";
 
 export function HojeView() {
   const { data, isLoading, error } = useSnapshot();
   const enriched = useEnriched(data);
   const { session } = useRepo();
   const sctx = useScriptCtx();
+  const navApp = useNavApp((x) => x.app);
   const { openDrawer, openQuickLog } = useUi();
   const t = useMemo(() => (data ? computeToday(data, enriched, session.timezone) : null), [data, enriched, session.timezone]);
 
@@ -75,7 +78,7 @@ export function HojeView() {
                 </div>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   <Button variant="success" onClick={() => openQuickLog(next.id)}><CalendarCheck size={15} /> Check-in rápido</Button>
-                  <LinkButton href={mapsLink(nextAcc)} icon={<Navigation size={15} />}>Abrir rota</LinkButton>
+                  <LinkButton href={navLink(navApp, nextAcc)} icon={<Navigation size={15} />}>Abrir rota</LinkButton>
                   <LinkButton href={waLink(waNumber(nextAcc), preVisitScript(nextAcc, next, sctx, timeInTz(next.scheduled_at, tz)))}
                     icon={<MessageCircle size={15} />} whatsapp>WhatsApp pré-visita</LinkButton>
                 </div>

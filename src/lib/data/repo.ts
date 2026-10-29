@@ -8,6 +8,8 @@ import type {
 import type { Account, RouteStatus, Session, Snapshot } from "@/lib/domain/types";
 
 /** Contrato único de dados. Duas implementações: demo (localStorage) e Supabase. */
+import type { OrgSettings } from "@/lib/domain/integrations";
+
 export interface Repo {
   session: Session;
   load(): Promise<Snapshot>;
@@ -32,6 +34,9 @@ export interface Repo {
   savePlaybook(p: PlaybookInput): Promise<void>;
   deletePlaybook(id: string): Promise<void>;
   updateOrgName(name: string): Promise<void>;
+  // v2: integrações (organizations.settings; só admin grava)
+  loadOrgSettings(): Promise<OrgSettings>;
+  saveOrgSettings(settings: OrgSettings): Promise<void>;
   /** Avisa quando outra aba/dispositivo mudou algo. Retorna o unsubscribe. */
   subscribe(onChange: () => void): () => void;
 }

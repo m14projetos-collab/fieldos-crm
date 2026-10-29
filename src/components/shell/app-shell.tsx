@@ -1,5 +1,5 @@
 "use client";
-import { CalendarCheck, Command, Gauge, KanbanSquare, Map as MapIcon, Plus, Search, Sparkles, Sun, UserRound } from "lucide-react";
+import { CalendarCheck, Command, Gauge, KanbanSquare, Map as MapIcon, Plug, Plus, Search, Sparkles, Sun, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { type ReactNode, useEffect, useState } from "react";
@@ -12,6 +12,7 @@ import { QuickLogDialog } from "@/components/quicklog/quick-log-dialog";
 import { Button, cn } from "@/components/ui/primitives";
 import { DemoRepo } from "@/lib/data/demo-repo";
 import { useRepo } from "@/lib/data/hooks";
+import { useNavApp } from "@/lib/data/settings";
 import { useUi } from "@/lib/ui-store";
 
 const NAV = [
@@ -20,6 +21,7 @@ const NAV = [
   { href: "/rotas", label: "Rotas", icon: MapIcon, ready: true },
   { href: "/chave", label: "CHAVE", icon: Sparkles, ready: true },
   { href: "/performance", label: "Performance", icon: Gauge, ready: true },
+  { href: "/integracoes", label: "Integrações", icon: Plug, ready: true },
 ];
 
 export function AppShell({ children }: { children: ReactNode }) {
@@ -28,6 +30,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { setPalette, openQuickLog, setNewLead } = useUi();
   const [accountOpen, setAccountOpen] = useState(false);
   const isSupabase = repo.session.mode === "supabase";
+  const hydrateNav = useNavApp((s) => s.hydrate);
+  useEffect(() => hydrateNav(), [hydrateNav]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -113,7 +117,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main className="mx-auto max-w-6xl px-4 pb-28 pt-4 md:pb-10">{children}</main>
 
       {/* Bottom nav mobile */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-slate-800 bg-slate-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-slate-800 bg-slate-950/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         {NAV.map((n) => (
           <Link key={n.href} href={n.href} className={cn("flex flex-col items-center gap-0.5 py-2 text-[10px]", path === n.href ? "text-brand-300" : "text-slate-500")}>
             <n.icon size={18} />

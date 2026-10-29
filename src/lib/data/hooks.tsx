@@ -97,9 +97,9 @@ export function useActions() {
       run(i, applyLogVisitOutcome, (x) => repo.logVisitOutcome(x), "Visita registrada. CRM, pipeline e próximo follow-up atualizados."),
     completeFollowUp: (i: CompleteFollowUpInput) =>
       run(i, applyCompleteFollowUp, (x) => repo.completeFollowUp(x), i.nextInDays != null ? "Feito. Próximo follow-up agendado." : "Follow-up concluído."),
-    createLead: (i: CreateLeadInput) => {
+    createLead: (i: CreateLeadInput, opts?: { silent?: boolean }) => {
       const id = crypto.randomUUID();
-      return run({ ...i, id }, (s, x, c) => applyCreateLead(s, x, c, id), (x) => repo.createLead(x), "Lead criado com follow-up Dia 0.").then(
+      return run({ ...i, id }, (s, x, c) => applyCreateLead(s, x, c, id), (x) => repo.createLead(x), opts?.silent ? undefined : "Lead criado com follow-up Dia 0.").then(
         (ok) => (ok ? id : null),
       );
     },
@@ -119,9 +119,9 @@ export function useActions() {
         (ok) => (ok ? id : null),
       );
     },
-    setAccountStatus: (i: SetAccountStatusInput) =>
+    setAccountStatus: (i: SetAccountStatusInput, opts?: { silent?: boolean }) =>
       run({ ...i, newOppId: crypto.randomUUID() }, applySetAccountStatus, (x) => repo.setAccountStatus(x),
-        `Conta em ${ACCOUNT_STATUS_LABEL[i.status]}.`),
+        opts?.silent ? undefined : `Conta em ${ACCOUNT_STATUS_LABEL[i.status]}.`),
     updateOpportunity: (id: string, patch: OppPatch, msg?: string) =>
       run({ id, patch }, (s, x, c) => applyUpdateOpportunity(s, x.id, x.patch, c), (x) => repo.updateOpportunity(x.id, x.patch), msg),
     cancelVisit: (i: CancelVisitInput) => run(i, applyCancelVisit, (x) => repo.cancelVisit(x), "Visita cancelada. Próxima ação mantida."),

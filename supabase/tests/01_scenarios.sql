@@ -333,4 +333,48 @@ select pg_temp.expect_error(format('select public.set_account_status(%L, %L)', :
 reset role;
 select pg_temp.assert((select stage from opportunities where id = :'opp1') = 'fechado', 'oportunidade de A intacta');
 
+-- ---------------------------------------------------------------------------
+-- 0011 webhooks: dispara só com config ligada, URL segura e evento marcado
+-- ---------------------------------------------------------------------------
+reset role;
+select pg_temp.assert(public.webhook_url_ok('https://hook.us1.make.com/abc'), 'URL do Make aceita');
+select pg_temp.assert(not public.webhook_url_ok('http://hook.make.com/abc'), 'http recusado');
+select pg_temp.assert(not public.webhook_url_ok('https://192.168.0.5/x'), 'rede interna recusada');
+select pg_temp.assert(not public.webhook_url_ok('https://localhost/x'), 'localhost recusado');
+truncate net.calls;
+update public.organizations set settings = jsonb_build_object('webhook', jsonb_build_object(
+  'enabled', true, 'url', 'https://hook.us1.make.com/abc', 'events', jsonb_build_array('proposal.sent', 'deal.won', 'visit.checkin')))
+where id = :'org_a';
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+select public.create_lead('Bar Webhook', '21944440077', 'Bangu', null, 'Bar', 'Oeste') as accw \gset
+select public.create_opportunity(:'accw') as oppw \gset
+select public.move_opportunity(:'oppw', 'proposta_enviada');
+select public.move_opportunity(:'oppw', 'fechado', 349);
+select public.schedule_visit(:'accw', now(), 'pos_venda') as visw \gset
+select public.log_visit_outcome(:'visw', 'interesse_confirmado');
+reset role;
+select pg_temp.assert((select count(*) from net.calls) = 3, 'webhook: proposta, venda e check-in = 3 disparos');
+select pg_temp.assert((select array_agg(body->>'event' order by id) from net.calls) = array['proposal.sent', 'deal.won', 'visit.checkin'],
+  'webhook: eventos na ordem certa');
+select pg_temp.assert((select body->'account'->>'name' from net.calls order by id limit 1) = 'Bar Webhook', 'webhook leva a conta');
+select pg_temp.assert((select (body->'opportunity'->>'mrr_value')::numeric from net.calls where body->>'event' = 'deal.won') = 349,
+  'webhook de venda leva o MRR');
+-- evento desmarcado e config desligada não disparam
+update public.organizations set settings = jsonb_set(settings, '{webhook,events}', '["deal.won"]') where id = :'org_a';
+truncate net.calls;
+set role authenticated;
+select public.schedule_visit(:'accw', now(), 'pos_venda') as visw2 \gset
+select public.log_visit_outcome(:'visw2', 'interesse_confirmado');
+reset role;
+select pg_temp.assert((select count(*) from net.calls) = 0, 'evento desmarcado não dispara');
+update public.organizations set settings = jsonb_set(settings, '{webhook,url}', '"http://inseguro.com"') where id = :'org_a';
+update public.organizations set settings = jsonb_set(settings, '{webhook,events}', '["visit.checkin"]') where id = :'org_a';
+set role authenticated;
+select public.schedule_visit(:'accw', now(), 'pos_venda') as visw3 \gset
+select public.log_visit_outcome(:'visw3', 'interesse_confirmado');
+reset role;
+select pg_temp.assert((select count(*) from net.calls) = 0, 'URL http não dispara');
+-- (o revoke de emit_webhook para authenticated é conferido no Supabase real: aqui o topo do teste dá grant em tudo)
+
 select pg_temp.assert(true, 'TODOS OS CENÁRIOS PASSARAM');

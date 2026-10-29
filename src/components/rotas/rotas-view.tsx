@@ -20,6 +20,8 @@ import { routeFor } from "@/lib/domain/pipeline";
 import type { Account, Visit } from "@/lib/domain/types";
 import { useUi } from "@/lib/ui-store";
 import { AccountLink } from "@/components/ui/account-link";
+import { useNavApp } from "@/lib/data/settings";
+import { navLink } from "@/lib/domain/integrations";
 
 const OPEN = ["agendada", "em_andamento", "reagendada"];
 const field = "rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-sm text-white focus:border-brand-500 focus:outline-none";
@@ -84,6 +86,7 @@ export function RotasView() {
   const [adjustTimes, setAdjustTimes] = useState(false);
   const [startTime, setStartTime] = useState("09:00");
   const [progress, setProgress] = useState<string | null>(null);
+  const navApp = useNavApp((x) => x.app);
 
   const route = data ? routeFor(data, session.userId, date) : undefined;
   const dayVisits = useMemo(
@@ -99,6 +102,11 @@ export function RotasView() {
   }, [dayVisits, route]);
   const done = dayVisits.filter((v) => !OPEN.includes(v.status));
 
+  useEffect(() => {
+    // vindo das ações em massa do CRM: /rotas?data=AAAA-MM-DD
+    const d = new URLSearchParams(window.location.search).get("data");
+    if (d && /^\d{4}-\d{2}-\d{2}$/.test(d)) setDate(d);
+  }, []);
   useEffect(() => setPlan(null), [date, data]);
   useEffect(() => {
     if (open[0]) setStartTime(timeInTz(open[0].scheduled_at, tz));
@@ -287,6 +295,12 @@ export function RotasView() {
                   <Navigation size={14} /> Abrir no Google Maps
                 </a>
               ) : null}
+              {navApp === "waze" && stops[0] && navLink("waze", stops[0].a) ? (
+                <a href={navLink("waze", stops[0].a)!} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/15 px-2.5 py-1.5 text-xs font-semibold text-sky-300 hover:bg-sky-500/25">
+                  <Navigation size={14} /> Waze: 1ª parada
+                </a>
+              ) : null}
             </div>
             {stacked >= 2 ? (
               <p className="mb-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-200">
@@ -340,8 +354,8 @@ export function RotasView() {
                       </Button>
                       {single ? (
                         <a className="inline-flex items-center gap-1 rounded-lg bg-slate-800/70 px-2.5 py-1.5 text-xs font-semibold text-slate-200"
-                          target="_blank" rel="noopener noreferrer" href={googleMapsRoute([single])!}>
-                          <Navigation size={13} /> Ir
+                          target="_blank" rel="noopener noreferrer" href={(navApp === "waze" ? navLink("waze", s.a) : null) ?? googleMapsRoute([single])!}>
+                          <Navigation size={13} /> Ir{navApp === "waze" ? " (Waze)" : ""}
                         </a>
                       ) : null}
                     </div>
