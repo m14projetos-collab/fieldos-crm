@@ -80,6 +80,18 @@ export function waLink(phone: string | null | undefined, text: string): string |
   return `https://wa.me/${full}?text=${encodeURIComponent(text)}`;
 }
 
+/** Celular BR (DDD + 9 + 8 dígitos). Fixo não recebe link de WhatsApp automático. */
+export function isMobileBR(phone: string | null | undefined): boolean {
+  let d = (phone || "").replace(/\D/g, "");
+  if (d.length >= 12 && d.startsWith("55")) d = d.slice(2);
+  return d.length === 11 && d[2] === "9";
+}
+
+/** Número para WhatsApp: o campo whatsapp; se vazio, o telefone só quando for celular. */
+export function waNumber(a: { whatsapp?: string | null; phone?: string | null }): string | null {
+  return a.whatsapp || (isMobileBR(a.phone) ? a.phone! : null);
+}
+
 export function mapsLink(a: Account): string | null {
   if (a.latitude != null && a.longitude != null)
     return `https://www.google.com/maps/dir/?api=1&destination=${a.latitude},${a.longitude}`;

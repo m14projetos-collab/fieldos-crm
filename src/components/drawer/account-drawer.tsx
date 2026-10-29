@@ -5,7 +5,7 @@ import { CalendarPlus, MessageCircle, Navigation, Pencil, Phone, X } from "lucid
 import { useEffect, useState } from "react";
 import { FollowUpRow } from "@/components/hoje/follow-up-row";
 import { Badge, Button, SectionTitle, cn, scoreColor } from "@/components/ui/primitives";
-import { cadenceScript, followUpScript, mapsLink, waLink } from "@/lib/domain/cadence";
+import { cadenceScript, followUpScript, mapsLink, waLink, waNumber } from "@/lib/domain/cadence";
 import {
   ACCOUNT_STATUS_LABEL, INTEREST_LABEL, MISSING_FIELD_LABEL, NEXT_BEST_ACTION_LABEL, OUTCOME_LABEL, PERSONA_LABEL,
   PRIORITY_LABEL, STAGE_LABEL, VISIT_TYPE_LABEL,
@@ -32,7 +32,7 @@ export function AccountDrawer() {
   const nextFu = acc?.next_followup ?? null;
   const fuVisit = nextFu?.visit_id ? data?.visits.find((v) => v.id === nextFu.visit_id) : undefined;
   const script = acc ? (nextFu ? followUpScript(nextFu, acc, sctx, fuVisit) : cadenceScript(acc.cadence_day, acc, sctx)) : "";
-  const wa = acc ? waLink(acc.whatsapp || acc.phone, script) : null;
+  const wa = acc ? waLink(waNumber(acc), script) : null;
   const phone = acc ? (acc.phone || acc.whatsapp || "").replace(/\D/g, "") : "";
 
   return (
@@ -152,7 +152,10 @@ function AccountData({ acc }: { acc: Account }) {
   const rows: [string, keyof Account][] = [
     ["WhatsApp", "whatsapp"], ["Telefone", "phone"], ["Decisor", "decision_maker_name"], ["Endereço", "address"],
     ["Bairro", "neighborhood"], ["Região", "region"], ["Cidade", "city"], ["Segmento", "segment"], ["Sistema atual", "current_system"],
+    ["E-mail", "email"], ["Instagram", "instagram_url"], ["Site / cardápio", "website_url"],
   ];
+  const linkFor = (k: keyof Account, val: string) =>
+    k === "email" ? `mailto:${val}` : k === "instagram_url" || k === "website_url" ? (/^https?:\/\//.test(val) ? val : `https://${val}`) : null;
 
   const save = async () => {
     const patch: Partial<Account> = {};
@@ -193,6 +196,9 @@ function AccountData({ acc }: { acc: Account }) {
               </select>
             </label>
           </div>
+          <label className="block space-y-0.5 text-[11px] text-slate-400">Notas / inteligência comercial
+            <textarea className={cn(field, "min-h-28")} value={v("notes") ?? ""} onChange={(e) => set("notes", e.target.value)} />
+          </label>
           <div className="flex justify-end gap-2">
             <Button size="sm" onClick={() => { setEdit(false); setForm({}); }}>Cancelar</Button>
             <Button size="sm" variant="primary" onClick={save} disabled={!Object.keys(form).length}>Salvar</Button>
@@ -203,10 +209,27 @@ function AccountData({ acc }: { acc: Account }) {
           {rows.map(([label, k]) => (
             <div key={k} className="min-w-0">
               <dt className="text-[10px] uppercase text-slate-500">{label}</dt>
-              <dd className="truncate text-slate-200">{(acc[k] as string | null) || <span className="text-slate-600">—</span>}</dd>
+              <dd className="truncate text-slate-200">
+                {(() => {
+                  const val = acc[k] as string | null | undefined;
+                  if (!val) return <span className="text-slate-600">—</span>;
+                  const href = linkFor(k, val);
+                  return href ? (
+                    <a href={href} target="_blank" rel="noopener noreferrer" className="text-brand-300 hover:underline">
+                      {val.replace(/^https?:\/\/(www\.)?/, "")}
+                    </a>
+                  ) : val;
+                })()}
+              </dd>
             </div>
           ))}
           <div><dt className="text-[10px] uppercase text-slate-500">Persona</dt><dd className="text-slate-200">{PERSONA_LABEL[acc.persona]}</dd></div>
+          {acc.notes ? (
+            <div className="col-span-2 mt-1">
+              <dt className="text-[10px] uppercase text-slate-500">Notas / inteligência comercial</dt>
+              <dd className="whitespace-pre-line rounded-lg bg-slate-900 p-2.5 text-[11px] leading-relaxed text-slate-300">{acc.notes}</dd>
+            </div>
+          ) : null}
         </dl>
       )}
     </section>

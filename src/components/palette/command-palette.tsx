@@ -5,7 +5,7 @@ import { Command } from "cmdk";
 import { CalendarCheck, CalendarPlus, MessageCircle, Plus, Sparkles, Store } from "lucide-react";
 import { useState } from "react";
 import { ACCOUNT_STATUS_LABEL } from "@/lib/domain/constants";
-import { cadenceScript, followUpScript, waLink } from "@/lib/domain/cadence";
+import { cadenceScript, followUpScript, waLink, waNumber } from "@/lib/domain/cadence";
 import { useEnriched, useScriptCtx, useSnapshot } from "@/lib/data/hooks";
 import { useUi } from "@/lib/ui-store";
 
@@ -30,7 +30,7 @@ export function CommandPalette() {
     if (!a) return null;
     const fu = a.next_followup;
     const text = fu ? followUpScript(fu, a, sctx, fu.visit_id ? visits.get(fu.visit_id) : undefined) : cadenceScript(a.cadence_day, a, sctx);
-    return waLink(a.whatsapp || a.phone, text);
+    return waLink(waNumber(a), text);
   };
 
   return (

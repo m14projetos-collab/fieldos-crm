@@ -19,7 +19,7 @@ export interface Repo {
 export const UPDATABLE_ACCOUNT_FIELDS = [
   "name", "phone", "whatsapp", "email", "decision_maker_name", "internal_contact", "persona", "address",
   "city", "region", "neighborhood", "segment", "company_size", "current_system", "priority", "interest_level",
-  "preferred_channel", "pain_inputs", "estimated_monthly_pain_brl", "notes",
+  "preferred_channel", "pain_inputs", "estimated_monthly_pain_brl", "notes", "instagram_url", "website_url",
 ] as const satisfies readonly (keyof Account)[];
 
 export function pickUpdatable(patch: Partial<Account>): Partial<Account> {

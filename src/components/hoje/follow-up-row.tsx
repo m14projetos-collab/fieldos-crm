@@ -3,7 +3,7 @@ import { Check, MessageCircle, Phone } from "lucide-react";
 import { useState } from "react";
 import { Badge, Button, cn } from "@/components/ui/primitives";
 import { CHANNEL_LABEL, nextCadenceStep } from "@/lib/domain/constants";
-import { followUpScript, waLink } from "@/lib/domain/cadence";
+import { followUpScript, waLink, waNumber } from "@/lib/domain/cadence";
 import { relativeDayLabel } from "@/lib/domain/dates";
 import type { Account, FollowUp, Visit } from "@/lib/domain/types";
 import { useActions, useScriptCtx } from "@/lib/data/hooks";
@@ -18,7 +18,7 @@ export function FollowUpRow({
   const openDrawer = useUi((s) => s.openDrawer);
   const overdue = fu.due_date < today;
   const text = followUpScript(fu, account, sctx, visit);
-  const wa = waLink(account.whatsapp || account.phone, text);
+  const wa = waLink(waNumber(account), text);
   const nextStep = fu.cadence_step != null ? nextCadenceStep(fu.cadence_step) : null;
 
   const done = async (nextInDays: number | null, result: "concluido" | "sem_resposta" = "concluido") => {

@@ -3,7 +3,7 @@ import { AlertTriangle, CalendarCheck, Clock, MapPin, MessageCircle, Navigation 
 import { useMemo } from "react";
 import { FollowUpRow } from "./follow-up-row";
 import { Badge, Button, Card, SectionTitle, cn, scoreColor } from "@/components/ui/primitives";
-import { mapsLink, preVisitScript, waLink } from "@/lib/domain/cadence";
+import { mapsLink, preVisitScript, waLink, waNumber } from "@/lib/domain/cadence";
 import { ACCOUNT_STATUS_LABEL, OUTCOME_LABEL, PERSONA_LABEL, VISIT_TYPE_LABEL } from "@/lib/domain/constants";
 import { brl, timeInTz } from "@/lib/domain/dates";
 import { computeToday } from "@/lib/domain/today";
@@ -74,7 +74,7 @@ export function HojeView() {
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                   <Button variant="success" onClick={() => openQuickLog(next.id)}><CalendarCheck size={15} /> Check-in rápido</Button>
                   <LinkButton href={mapsLink(nextAcc)} icon={<Navigation size={15} />}>Abrir rota</LinkButton>
-                  <LinkButton href={waLink(nextAcc.whatsapp || nextAcc.phone, preVisitScript(nextAcc, next, sctx, timeInTz(next.scheduled_at, tz)))}
+                  <LinkButton href={waLink(waNumber(nextAcc), preVisitScript(nextAcc, next, sctx, timeInTz(next.scheduled_at, tz)))}
                     icon={<MessageCircle size={15} />} whatsapp>WhatsApp pré-visita</LinkButton>
                 </div>
               </div>

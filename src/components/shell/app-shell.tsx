@@ -99,7 +99,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Button variant="warn" size="sm" onClick={() => openQuickLog()} className="hidden sm:inline-flex">
           <CalendarCheck size={14} /> Check-in
         </Button>
-        <Button variant="primary" size="sm" onClick={() => setNewLead(true)}>
+        <Button variant="primary" size="sm" aria-label="Novo lead" onClick={() => setNewLead(true)}>
           <Plus size={14} /> <span className="hidden sm:inline">Novo lead</span>
         </Button>
         {isSupabase ? (

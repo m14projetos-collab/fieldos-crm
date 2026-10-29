@@ -38,6 +38,8 @@ export interface Account {
   phone: string | null;
   whatsapp: string | null;
   email: string | null;
+  instagram_url?: string | null;
+  website_url?: string | null;
   decision_maker_name: string | null;
   internal_contact: string | null;
   persona: Persona;

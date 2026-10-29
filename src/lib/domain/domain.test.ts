@@ -129,3 +129,32 @@ describe("fuso", () => {
     expect(zonedToIso("2026-10-29", "14:30", "America/Sao_Paulo")).toBe("2026-10-29T17:30:00.000Z");
   });
 });
+
+describe("duplicidade", () => {
+  const base = { id: "x", name: "Bar do Malaquias", phone: "(21) 3305-4643", whatsapp: "(21) 99762-9741" } as unknown as import("./types").Account;
+  it("acha por nome sem acento/caixa/pontuação", async () => {
+    const { findDuplicates } = await import("./duplicates");
+    expect(findDuplicates([base], "bar do malaquías!")[0]?.reason).toBe("nome");
+  });
+  it("acha por telefone com ou sem DDI e máscara", async () => {
+    const { findDuplicates } = await import("./duplicates");
+    expect(findDuplicates([base], "Outro nome", "+55 21 99762-9741")[0]?.reason).toBe("telefone");
+    expect(findDuplicates([base], "Outro nome", "2133054643")[0]?.reason).toBe("telefone");
+  });
+  it("não acusa nomes diferentes nem telefone curto", async () => {
+    const { findDuplicates } = await import("./duplicates");
+    expect(findDuplicates([base], "Bar do Malaquias 2", "9762")).toHaveLength(0);
+  });
+});
+
+describe("whatsapp x fixo", () => {
+  it("só usa o telefone para WhatsApp quando é celular", async () => {
+    const { waNumber, isMobileBR } = await import("./cadence");
+    expect(isMobileBR("(21) 99762-9741")).toBe(true);
+    expect(isMobileBR("+55 21 99762-9741")).toBe(true);
+    expect(isMobileBR("(21) 3251-1175")).toBe(false);
+    expect(waNumber({ whatsapp: null, phone: "(21) 3251-1175" })).toBeNull();
+    expect(waNumber({ whatsapp: null, phone: "(21) 99762-9741" })).toBe("(21) 99762-9741");
+    expect(waNumber({ whatsapp: "(21) 3251-1175", phone: null })).toBe("(21) 3251-1175");
+  });
+});
