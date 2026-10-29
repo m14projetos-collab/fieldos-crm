@@ -10,7 +10,9 @@ grant execute on all functions in schema public to authenticated;
 
 insert into auth.users (id, email) values
   ('00000000-0000-0000-0000-00000000000a', 'michel@takeat.test'),
-  ('00000000-0000-0000-0000-00000000000b', 'outro@concorrente.test');
+  ('00000000-0000-0000-0000-00000000000b', 'outro@concorrente.test'),
+  ('00000000-0000-0000-0000-00000000000c', 'Vendedor@Takeat.test'),
+  ('00000000-0000-0000-0000-00000000000d', 'sem.convite@x.test');
 
 -- helper de asserção
 create or replace function pg_temp.assert(cond boolean, msg text) returns void language plpgsql as $$
@@ -142,6 +144,25 @@ do $$ begin
 end $$;
 
 reset role;
+-- ===================== Convites =====================
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+insert into org_invites (email, full_name) values ('vendedor@takeat.test', 'Vendedor Um');
+select pg_temp.assert((select count(*) from org_invites) = 1, 'admin A vê o convite');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
+select pg_temp.assert((select count(*) from org_invites) = 0, 'B não vê convites de A');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000c', false);
+select pg_temp.assert(public.accept_invite() = :'org_a', 'convidado entra na org A (e-mail sem diferenciar maiúsculas)');
+select pg_temp.assert(public.current_org_id() = :'org_a', 'convidado enxerga a org A');
+select pg_temp.assert((select count(*) from accounts) > 0, 'convidado vê as contas da org');
+select pg_temp.assert((select role from profiles where id = auth.uid()) = 'ae', 'convidado entra como ae');
+select pg_temp.assert((select count(*) from org_invites) = 0, 'ae não vê convites');
+select pg_temp.assert(public.accept_invite() = :'org_a', 'aceitar de novo é idempotente');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000d', false);
+select pg_temp.assert(public.accept_invite() is null, 'sem convite: segue para criar organização');
+reset role;
+select pg_temp.assert((select accepted_at is not null from org_invites where email = 'vendedor@takeat.test'), 'convite marcado como aceito');
+
 -- Visitante sem login (anon) não executa nenhuma função do app (migration 0006)
 select pg_temp.assert(
   not exists (

@@ -44,11 +44,19 @@ function SupabaseGate({ children }: { children: ReactNode }) {
     let cancelled = false;
     const resolve = async (auth: AuthSession | null) => {
       if (!auth) return setState({ kind: "signed_out" });
-      const { data: prof, error } = await sb
-        .from("profiles")
-        .select("full_name, org_id, organizations(name, timezone)")
-        .eq("id", auth.user.id)
-        .maybeSingle();
+      const loadProfile = () =>
+        sb
+          .from("profiles")
+          .select("full_name, org_id, organizations(name, timezone)")
+          .eq("id", auth.user.id)
+          .maybeSingle();
+      let { data: prof, error } = await loadProfile();
+      if (!error && !prof) {
+        // Primeiro acesso: se o admin convidou este e-mail, entra direto na org dele.
+        const { data: invitedOrg, error: invErr } = await sb.rpc("accept_invite");
+        if (invErr) error = invErr;
+        else if (invitedOrg) ({ data: prof, error } = await loadProfile());
+      }
       if (cancelled) return;
       if (error) return setState({ kind: "error", message: error.message });
       if (!prof) return setState({ kind: "no_org", auth });
