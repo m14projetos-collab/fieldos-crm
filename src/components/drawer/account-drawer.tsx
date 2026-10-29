@@ -8,14 +8,15 @@ import { Badge, Button, SectionTitle, cn, scoreColor } from "@/components/ui/pri
 import { cadenceScript, followUpScript, mapsLink, waLink, waNumber } from "@/lib/domain/cadence";
 import {
   ACCOUNT_STATUS_LABEL, INTEREST_LABEL, MISSING_FIELD_LABEL, NEXT_BEST_ACTION_LABEL, OUTCOME_LABEL, PERSONA_LABEL,
-  PRIORITY_LABEL, STAGE_LABEL, VISIT_TYPE_LABEL,
+  PRIORITY_LABEL, VISIT_TYPE_LABEL,
 } from "@/lib/domain/constants";
-import { brl, dateInTz, formatDateBR, timeInTz } from "@/lib/domain/dates";
+import { dateInTz, formatDateBR, timeInTz } from "@/lib/domain/dates";
 import type { EnrichedAccount } from "@/lib/domain/enrich";
 import type { Account, Interest, Persona, Priority } from "@/lib/domain/types";
 import { useActions, useEnriched, useRepo, useScriptCtx, useSnapshot } from "@/lib/data/hooks";
 import { useUi } from "@/lib/ui-store";
 import { PainCalculator } from "./pain-calculator";
+import { PipelinePanel } from "./pipeline-panel";
 
 export function AccountDrawer() {
   const { drawerAccountId, closeDrawer, openSchedule } = useUi();
@@ -98,19 +99,7 @@ export function AccountDrawer() {
 
                 <PainCalculator acc={acc} />
 
-                <section>
-                  <SectionTitle>Oportunidades ({opps.length})</SectionTitle>
-                  {opps.length ? (
-                    <ul className="space-y-1.5">
-                      {opps.map((o) => (
-                        <li key={o.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-900 px-3 py-2 text-xs">
-                          <span className="min-w-0 truncate text-slate-200">{o.title}</span>
-                          <span className="shrink-0 text-slate-400">{STAGE_LABEL[o.stage]} · {brl(Number(o.mrr_value))} · {o.probability}%</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : <p className="text-xs text-slate-400">Nenhuma. O Quick Log cria a oportunidade quando há interesse.</p>}
-                </section>
+                <PipelinePanel acc={acc} opps={opps} />
 
                 <section>
                   <SectionTitle>Histórico de visitas ({visits.length})</SectionTitle>

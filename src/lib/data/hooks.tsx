@@ -10,7 +10,17 @@ import {
   type ScheduleVisitInput, applyCompleteFollowUp, applyCreateLead, applyLogVisitOutcome, applyScheduleVisit,
   applyUpdateAccount,
 } from "@/lib/domain/transitions";
-import type { Account, Snapshot } from "@/lib/domain/types";
+import {
+  type CancelVisitInput, type CreateOpportunityInput, type MoveOpportunityInput, type RescheduleVisitInput,
+  type SaveRouteInput, type SetAccountStatusInput, applyCancelVisit, applyCreateOpportunity, applyMoveOpportunity,
+  applyRescheduleVisit, applySaveRoute, applySetAccountStatus, applySetRouteStatus,
+} from "@/lib/domain/pipeline";
+import {
+  type DailyLogInput, type GoalInput, type OppPatch, type PlaybookInput, applyDeleteGoal, applyDeletePlaybook,
+  applySaveDailyLog, applySaveGoal, applySavePlaybook, applyUpdateOpportunity,
+} from "@/lib/domain/records";
+import type { Account, RouteStatus, Snapshot } from "@/lib/domain/types";
+import { STAGE_LABEL, ACCOUNT_STATUS_LABEL } from "@/lib/domain/constants";
 import type { Repo } from "./repo";
 
 const RepoCtx = createContext<Repo | null>(null);
@@ -99,6 +109,30 @@ export function useActions() {
     },
     updateAccount: (id: string, patch: Partial<Account>, msg?: string) =>
       run({ id, patch }, (s, x, c) => applyUpdateAccount(s, x.id, x.patch, c), (x) => repo.updateAccount(x.id, x.patch), msg),
+    moveOpportunity: (i: MoveOpportunityInput) =>
+      run(i, applyMoveOpportunity, (x) => repo.moveOpportunity(x), `Oportunidade em ${STAGE_LABEL[i.stage]}. Conta e próxima ação atualizadas.`),
+    createOpportunity: (i: Omit<CreateOpportunityInput, "id">) => {
+      const id = crypto.randomUUID();
+      return run({ ...i, id }, applyCreateOpportunity, (x) => repo.createOpportunity(x), "Oportunidade criada no pipeline.").then(
+        (ok) => (ok ? id : null),
+      );
+    },
+    setAccountStatus: (i: SetAccountStatusInput) =>
+      run({ ...i, newOppId: crypto.randomUUID() }, applySetAccountStatus, (x) => repo.setAccountStatus(x),
+        `Conta em ${ACCOUNT_STATUS_LABEL[i.status]}.`),
+    updateOpportunity: (id: string, patch: OppPatch, msg?: string) =>
+      run({ id, patch }, (s, x, c) => applyUpdateOpportunity(s, x.id, x.patch, c), (x) => repo.updateOpportunity(x.id, x.patch), msg),
+    cancelVisit: (i: CancelVisitInput) => run(i, applyCancelVisit, (x) => repo.cancelVisit(x), "Visita cancelada. Próxima ação mantida."),
+    rescheduleVisit: (i: RescheduleVisitInput) => run(i, applyRescheduleVisit, (x) => repo.rescheduleVisit(x), "Visita reagendada."),
+    saveRoute: (i: Omit<SaveRouteInput, "id">, msg = "Rota salva.") =>
+      run({ ...i, id: crypto.randomUUID() }, applySaveRoute, (x) => repo.saveRoute(x), msg),
+    setRouteStatus: (i: { routeId: string; status: RouteStatus }, msg?: string) =>
+      run(i, (s, x) => applySetRouteStatus(s, x), (x) => repo.setRouteStatus(x), msg),
+    saveGoal: (g: GoalInput) => run(g, applySaveGoal, (x) => repo.saveGoal(x), "Meta salva."),
+    deleteGoal: (id: string) => run(id, (s, x) => applyDeleteGoal(s, x), (x) => repo.deleteGoal(x), "Meta removida."),
+    saveDailyLog: (d: DailyLogInput) => run(d, applySaveDailyLog, (x) => repo.saveDailyLog(x), "Daily salvo."),
+    savePlaybook: (p: PlaybookInput) => run(p, applySavePlaybook, (x) => repo.savePlaybook(x), "Playbook salvo."),
+    deletePlaybook: (id: string) => run(id, (s, x) => applyDeletePlaybook(s, x), (x) => repo.deletePlaybook(x), "Playbook removido."),
   };
 }
 

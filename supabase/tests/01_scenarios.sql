@@ -175,4 +175,149 @@ select pg_temp.assert(
 select pg_temp.assert(has_function_privilege('authenticated', 'public.create_organization(text,text,text)', 'execute'),
   'authenticated ainda cria organização');
 
+
+-- ===================== Fase 2: pipeline, status da conta e rotas (0009) =====================
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+create or replace function pg_temp.expect_error(p_sql text, p_hint text, msg text) returns void language plpgsql as $$
+declare v_hint text;
+begin
+  begin
+    execute p_sql;
+  exception when others then
+    get stacked diagnostics v_hint = pg_exception_hint;
+    if p_hint is not null and coalesce(v_hint, '') <> p_hint then
+      raise exception 'FALHOU: % (hint esperado %, veio % / %)', msg, p_hint, v_hint, sqlerrm;
+    end if;
+    raise notice 'ok: % (%)', msg, sqlerrm;
+    return;
+  end;
+  raise exception 'FALHOU: % (não deu erro)', msg;
+end $$;
+
+select public.create_lead('Pizzaria Pipeline', '21944440009', 'Campo Grande', 'Saipos', 'Pizzaria', 'Oeste') as accp \gset
+select public.create_opportunity(:'accp') as opp1 \gset
+select pg_temp.assert((select stage = 'qualificado' and probability = 35 from opportunities where id = :'opp1'), 'nova oportunidade em qualificado');
+select pg_temp.assert((select status from accounts where id = :'accp') = 'discovery', 'conta acompanha: discovery');
+select pg_temp.assert((select count(*) from follow_ups where account_id = :'accp' and status = 'pendente') = 1,
+  'nova oportunidade não duplica a próxima ação');
+select pg_temp.expect_error(format('select public.move_opportunity(%L, %L)', :'opp1', 'fechado'), 'MRR_REQUIRED',
+  'fechar sem MRR é bloqueado');
+select pg_temp.expect_error(format('select public.move_opportunity(%L, %L)', :'opp1', 'perdido'), 'LOSS_REASON_REQUIRED',
+  'perder sem motivo é bloqueado');
+select pg_temp.expect_error(format('select public.create_opportunity(%L)', :'accp'), 'OPEN_OPP_EXISTS',
+  'não cria segunda oportunidade aberta na mesma conta');
+
+select public.move_opportunity(:'opp1', 'proposta_enviada');
+select pg_temp.assert((select status from accounts where id = :'accp') = 'proposta_enviada', 'mover p/ proposta move a conta');
+select pg_temp.assert((select probability = 65 and proposal_sent_at is not null from opportunities where id = :'opp1'),
+  'proposta: probabilidade 65 e data de envio');
+select pg_temp.assert((select count(*) from follow_ups where account_id = :'accp' and status = 'pendente') = 1,
+  'proposta: exatamente 1 próxima ação');
+select pg_temp.assert((select title like 'Cobrar decisão%' from follow_ups where account_id = :'accp' and status = 'pendente'),
+  'proposta: próxima ação é cobrar decisão');
+
+select public.move_opportunity(:'opp1', 'qualificado');
+select pg_temp.assert((select status from accounts where id = :'accp') = 'proposta_enviada', 'voltar etapa no Kanban não rebaixa a conta');
+select pg_temp.assert((select count(*) from follow_ups where account_id = :'accp' and status = 'pendente') = 1,
+  'voltar etapa mantém 1 próxima ação (sem duplicar)');
+
+select public.move_opportunity(:'opp1', 'fechado', 299);
+select pg_temp.assert((select status = 'fechado' and post_sale_phase = 'onboarding' from accounts where id = :'accp'),
+  'fechar: conta vira cliente em onboarding');
+select pg_temp.assert((select mrr_value = 299 and closed_at is not null and probability = 100 from opportunities where id = :'opp1'),
+  'fechar: MRR, data e 100%');
+select pg_temp.assert((select count(*) from follow_ups where account_id = :'accp' and status = 'pendente' and channel = 'visita'
+  and due_date = org_today(:'org_a') + 7) = 1, 'fechar: pós-venda em 7 dias');
+select pg_temp.assert((select count(*) from follow_ups where account_id = :'accp' and status = 'pendente') = 1,
+  'fechar: só 1 próxima ação');
+select pg_temp.assert((select actual_value from vw_goal_progress where category = 'visitas') = 3, 'mover no Kanban não infla meta de visitas');
+
+-- upsell num cliente não rebaixa a conta
+select public.create_opportunity(:'acc1', 'qualificado', 50, 'Módulo delivery') as opp_up \gset
+select pg_temp.assert((select status from accounts where id = :'acc1') = 'fechado', 'upsell aberto mantém cliente como fechado');
+select public.move_opportunity(:'opp_up', 'perdido', null, 'preco', 'achou caro');
+select pg_temp.assert((select status from accounts where id = :'acc1') = 'fechado', 'upsell perdido mantém cliente');
+select pg_temp.assert((select loss_category = 'preco' and loss_detail = 'achou caro' and probability = 0 from opportunities where id = :'opp_up'),
+  'perda registra motivo e zera probabilidade');
+
+-- Kanban de prospecção (status da conta)
+select public.create_lead('Hamburgueria Teste', '21988880002', 'Santa Cruz', 'iFood', 'Hamburgueria', 'Oeste') as acc2 \gset
+select public.set_account_status(:'acc2', 'discovery');
+select pg_temp.assert((select status from accounts where id = :'acc2') = 'discovery', 'status discovery');
+select pg_temp.assert((select count(*) from follow_ups where account_id = :'acc2' and status = 'pendente') = 1,
+  'discovery: mantém 1 próxima ação');
+select public.set_account_status(:'acc2', 'proposta_enviada', 199);
+select pg_temp.assert((select stage = 'proposta_enviada' and mrr_value = 199 from opportunities where account_id = :'acc2'),
+  'arrastar conta p/ proposta cria a oportunidade');
+select pg_temp.assert((select count(*) from opportunities where account_id = :'acc2') = 1, 'sem oportunidade duplicada');
+select pg_temp.assert((select count(*) from follow_ups where account_id = :'acc2' and status = 'pendente') = 1,
+  'proposta via conta: 1 próxima ação');
+select pg_temp.expect_error(format('select public.set_account_status(%L, %L)', :'acc2', 'primeiro_contato'), 'OPEN_OPP_EXISTS',
+  'não esconde negociação aberta voltando a conta para prospecção');
+select pg_temp.expect_error(format('select public.set_account_status(%L, %L)', :'acc2', 'perdido'), 'LOSS_REASON_REQUIRED',
+  'conta perdida exige motivo');
+select public.set_account_status(:'acc2', 'perdido', null, 'ja_tem_sistema');
+select pg_temp.assert((select status = 'perdido' and loss_reason = 'ja_tem_sistema' from accounts where id = :'acc2'), 'conta perdida');
+select pg_temp.assert((select stage from opportunities where account_id = :'acc2') = 'perdido', 'oportunidade aberta vira perdida');
+select pg_temp.assert((select count(*) from follow_ups where account_id = :'acc2' and status = 'pendente'
+  and due_date = org_today(:'org_a') + 90 and priority = 'baixa') = 1, 'perdido: recuperação em 90 dias (única ação)');
+select public.set_account_status(:'acc2', 'primeiro_contato');
+select pg_temp.assert((select status = 'primeiro_contato' and loss_reason is null from accounts where id = :'acc2'),
+  'reativar conta perdida limpa o motivo');
+
+select public.create_lead('Açaí Teste', '21977770003', 'Paciência', null, 'Açaí', 'Oeste') as acc3 \gset
+select public.set_account_status(:'acc3', 'fechado', 350);
+select pg_temp.assert((select stage = 'fechado' and mrr_value = 350 and closed_at is not null from opportunities where account_id = :'acc3'),
+  'fechar direto pela conta cria venda com MRR');
+select pg_temp.assert((select status from accounts where id = :'acc3') = 'fechado', 'conta fechada');
+
+-- Rotas
+select public.create_lead('Pastelaria Rota', '21966660004', 'Campo Grande', null, 'Pastelaria', 'Oeste') as acc4 \gset
+select public.create_lead('Restaurante Rota', '21955550005', 'Inhoaíba', null, 'Restaurante', 'Oeste') as acc5 \gset
+select ((org_today(:'org_a')::timestamp + time '10:00') at time zone 'America/Sao_Paulo') as t10 \gset
+select ((org_today(:'org_a')::timestamp + time '14:00') at time zone 'America/Sao_Paulo') as t14 \gset
+select public.schedule_visit(:'acc4', :'t10', 'primeiro_contato', 45) as v4 \gset
+select public.schedule_visit(:'acc5', :'t14', 'primeiro_contato', 45) as v5 \gset
+select public.save_route(org_today(:'org_a'), array[:'v5', :'v4']::uuid[], 12.34, 75, 'linha_reta', '09:00') as route1 \gset
+select pg_temp.assert((select route_order from visits where id = :'v5') = 1 and (select route_order from visits where id = :'v4') = 2,
+  'rota grava a ordem otimizada');
+select pg_temp.assert((select estimated_km = 12.3 and estimated_minutes = 75 and distance_source = 'linha_reta' from routes where id = :'route1'),
+  'rota grava KM, tempo e origem');
+select public.save_route(org_today(:'org_a'), array[:'v4']::uuid[], 5, 30, 'ruas') as route2 \gset
+select pg_temp.assert(:'route1' = :'route2', 'salvar de novo atualiza a mesma rota (sem duplicar)');
+select pg_temp.assert((select count(*) from routes) = 1, 'uma rota por vendedor por dia');
+select pg_temp.assert((select route_id is null and route_order is null from visits where id = :'v5'), 'visita removida sai da rota');
+select pg_temp.expect_error(format('select public.save_route(%L::date, array[%L]::uuid[], 1, 1, %L)',
+  org_today(:'org_a') + 1, :'v4', 'ruas'), null, 'rota não aceita visita de outro dia');
+select pg_temp.expect_error(format('select public.save_route(%L::date, array[%L]::uuid[], 1, 1, %L)',
+  org_today(:'org_a'), :'v4', 'gps'), null, 'origem de distância inválida é recusada');
+
+select public.reschedule_visit(:'v4', (:'t10')::timestamptz + interval '1 day');
+select pg_temp.assert((select route_id is null from visits where id = :'v4'), 'reagendar para outro dia tira da rota');
+select pg_temp.assert((select due_date from follow_ups where visit_id = :'v4' and status = 'pendente') = org_today(:'org_a') + 1,
+  'reagendar move o follow-up da visita');
+
+select public.cancel_visit(:'v5', 'dono viajou');
+select pg_temp.assert((select status from visits where id = :'v5') = 'cancelada', 'visita cancelada');
+select pg_temp.assert((select count(*) from follow_ups where visit_id = :'v5' and status = 'pendente') = 0,
+  'follow-up da visita cancelada sai da fila');
+select pg_temp.assert((select count(*) from follow_ups where account_id = :'acc5' and status = 'pendente') >= 1,
+  'conta da visita cancelada continua com próxima ação');
+select pg_temp.expect_error(format('select public.cancel_visit(%L)', :'v5'), null, 'não cancela duas vezes');
+
+select public.set_route_status(:'route1', 'cancelada');
+select pg_temp.assert((select count(*) from visits where route_id = :'route1') = 0, 'cancelar rota solta as visitas');
+select public.save_route(org_today(:'org_a'), array[]::uuid[], 0, 0, 'ruas') as route3 \gset
+select pg_temp.assert(:'route3' <> :'route1', 'depois de cancelada, pode criar nova rota no dia');
+
+-- B não move oportunidade de A
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
+select pg_temp.expect_error(format('select public.move_opportunity(%L, %L)', :'opp1', 'perdido'), null,
+  'B não move oportunidade de A');
+select pg_temp.expect_error(format('select public.set_account_status(%L, %L)', :'acc4', 'discovery'), null,
+  'B não muda status de conta de A');
+reset role;
+select pg_temp.assert((select stage from opportunities where id = :'opp1') = 'fechado', 'oportunidade de A intacta');
+
 select pg_temp.assert(true, 'TODOS OS CENÁRIOS PASSARAM');

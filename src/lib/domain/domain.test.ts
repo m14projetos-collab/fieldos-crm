@@ -15,7 +15,7 @@ let n = 0;
 const ctx = (now = new Date("2026-10-29T14:00:00Z")): Ctx => ({
   orgId: "org-a", userId: "user-a", tz: "America/Sao_Paulo", now, newId: () => `id-${++n}`,
 });
-const empty: Snapshot = { accounts: [], visits: [], opportunities: [], followUps: [], goals: [] };
+const empty: Snapshot = { accounts: [], visits: [], opportunities: [], followUps: [], goals: [], routes: [], dailyLogs: [], playbooks: [] };
 const pending = (s: Snapshot, acc: string) => s.followUps.filter((f) => f.account_id === acc && f.status === "pendente");
 
 describe("fluxo completo (paridade com o SQL)", () => {

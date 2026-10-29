@@ -6,6 +6,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { AccountDialog } from "./account-dialog";
 import { AccountDrawer } from "@/components/drawer/account-drawer";
 import { NewLeadDialog, ScheduleVisitDialog } from "@/components/dialogs/lead-visit-dialogs";
+import { MoveDialog } from "@/components/crm/move-dialog";
 import { CommandPalette } from "@/components/palette/command-palette";
 import { QuickLogDialog } from "@/components/quicklog/quick-log-dialog";
 import { Button, cn } from "@/components/ui/primitives";
@@ -15,7 +16,7 @@ import { useUi } from "@/lib/ui-store";
 
 const NAV = [
   { href: "/", label: "Hoje", icon: Sun, ready: true },
-  { href: "/crm", label: "CRM", icon: KanbanSquare, ready: false },
+  { href: "/crm", label: "CRM", icon: KanbanSquare, ready: true },
   { href: "/rotas", label: "Rotas", icon: MapIcon, ready: false },
   { href: "/chave", label: "CHAVE", icon: Sparkles, ready: false },
   { href: "/performance", label: "Performance", icon: Gauge, ready: false },
@@ -134,6 +135,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <CommandPalette />
       <NewLeadDialog />
       <ScheduleVisitDialog />
+      <MoveDialog />
       {isSupabase ? <AccountDialog open={accountOpen} onOpenChange={setAccountOpen} userName={repo.session.userName} /> : null}
     </div>
   );

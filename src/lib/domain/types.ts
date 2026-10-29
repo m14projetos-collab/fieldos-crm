@@ -20,6 +20,12 @@ export type FollowUpStatus = "pendente" | "concluido" | "sem_resposta" | "cancel
 export type FollowUpChannel = "ligacao" | "whatsapp" | "email" | "visita" | "proposta";
 export type CadenceStep = 0 | 2 | 5 | 7 | 10 | 15 | 30 | 60 | 90;
 
+export type GeoPrecision = "endereco" | "rua" | "bairro";
+export type IcpKey = "dor" | "volume" | "decisor" | "concorrente" | "timing";
+/** true = sim, false = não, ausente = não respondido */
+export type IcpChecklist = Partial<Record<IcpKey, boolean>>;
+export type ChaveKey = "conexao" | "hipotese" | "ancoragem" | "virada" | "extensao";
+
 export interface PainInputs {
   orders_month?: number;
   avg_ticket?: number;
@@ -49,6 +55,8 @@ export interface Account {
   neighborhood: string | null;
   latitude: number | null;
   longitude: number | null;
+  geo_precision?: GeoPrecision | null;
+  icp_checklist?: IcpChecklist;
   segment: string | null;
   company_size: string | null;
   current_system: string | null;
@@ -101,6 +109,9 @@ export interface Opportunity {
   proposal_sent_at: string | null;
   closed_at: string | null;
   conversion_channel: string | null;
+  loss_category?: string | null;
+  loss_detail?: string | null;
+  chave_checklist?: ChaveAudit | Record<string, never>;
   stage_changed_at: string;
   created_at: string;
   updated_at: string;
@@ -136,6 +147,56 @@ export interface Goal {
   target_value: number;
 }
 
+export interface ChaveAudit {
+  scores: Record<ChaveKey, number>; // 0-10 por etapa
+  total: number; // 0-10
+  persona: Persona | null;
+  answers: Record<string, boolean>;
+  audited_at: string;
+}
+
+export type RouteStatus = "planejada" | "em_andamento" | "concluida" | "cancelada";
+export interface Route {
+  id: string;
+  org_id: string;
+  owner_id: string | null;
+  route_date: string;
+  shift: "manha" | "tarde" | "noite" | "dia_todo";
+  work_mode: "campo" | "home_office";
+  status: RouteStatus;
+  estimated_km: number | null;
+  estimated_minutes?: number | null;
+  distance_source?: "ruas" | "linha_reta" | null;
+  start_time?: string | null;
+  logistics_notes: string | null;
+  created_at: string;
+}
+
+export type Mood = "otimo" | "bom" | "normal" | "cansativo" | "dificil";
+export interface DailyLog {
+  id: string;
+  org_id: string;
+  owner_id: string;
+  log_date: string;
+  day_score: number | null;
+  mood: Mood | null;
+  day_impact: string | null;
+  day_learning: string | null;
+  created_at: string;
+}
+
+export interface Playbook {
+  id: string;
+  org_id: string;
+  title: string;
+  category: string;
+  funnel_stage: string | null;
+  channel: string | null;
+  content_md: string;
+  ai_enabled: boolean;
+  updated_at: string;
+}
+
 export interface Session {
   orgId: string;
   orgName: string;
@@ -143,6 +204,7 @@ export interface Session {
   userName: string;
   timezone: string;
   mode: "demo" | "supabase";
+  role?: "admin" | "manager" | "ae";
 }
 
 /** Tudo que a UI precisa, carregado uma vez e mantido no cache do TanStack Query. */
@@ -152,4 +214,7 @@ export interface Snapshot {
   opportunities: Opportunity[];
   followUps: FollowUp[];
   goals: Goal[];
+  routes: Route[];
+  dailyLogs: DailyLog[];
+  playbooks: Playbook[];
 }

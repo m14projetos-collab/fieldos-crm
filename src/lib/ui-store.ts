@@ -1,7 +1,13 @@
 "use client";
 import { create } from "zustand";
 
+export type MoveRequest =
+  | { kind: "opp"; id: string; target: import("@/lib/domain/types").OppStage }
+  | { kind: "account"; id: string; target: import("@/lib/domain/types").AccountStatus };
+
 interface UiState {
+  move: MoveRequest | null;
+  setMove: (m: MoveRequest | null) => void;
   drawerAccountId: string | null;
   quickLog: { open: boolean; visitId: string | null };
   paletteOpen: boolean;
@@ -18,6 +24,8 @@ interface UiState {
 }
 
 export const useUi = create<UiState>((set) => ({
+  move: null,
+  setMove: (move) => set({ move }),
   drawerAccountId: null,
   quickLog: { open: false, visitId: null },
   paletteOpen: false,

@@ -1,5 +1,10 @@
 // Dados fictícios para o modo demo (nenhum restaurante real). Datas relativas a "hoje".
-import { addDays, dateInTz } from "@/lib/domain/dates";
+import { addDays, dateInTz, monthStart } from "@/lib/domain/dates";
+
+const addMonth = (d: string) => {
+  const [y, m] = d.split("-").map(Number);
+  return m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, "0")}-01`;
+};
 import type { Account, FollowUp, Goal, Opportunity, Snapshot, Visit } from "@/lib/domain/types";
 
 export const DEMO_ORG = "00000000-0000-4000-8000-000000000001";
@@ -57,7 +62,7 @@ export function buildDemoSnapshot(tz: string, now = new Date()): Snapshot {
     opp("o1", "a1", { title: "Cantina Exemplo — PDV + comanda", stage: "demo_agendada", probability: 50, mrr_value: 389 }),
     opp("o3", "a3", { title: "Bistrô Teste — cardápio digital", stage: "proposta_enviada", probability: 65, mrr_value: 259, proposal_sent_at: addDays(today, -10), updated_at: iso(10), stage_changed_at: iso(10) }),
     opp("o5", "a5", { title: "Churrascaria Amostra — 2 unidades", stage: "negociacao", probability: 80, mrr_value: 690, proposal_sent_at: addDays(today, -6) }),
-    opp("o7", "a7", { title: "Pizzaria Simulada — Pro", stage: "fechado", probability: 100, mrr_value: 0, closed_at: today }),
+    opp("o7", "a7", { title: "Pizzaria Simulada — Pro", stage: "fechado", probability: 100, mrr_value: 289, closed_at: today }),
   ];
 
   const fu = (id: string, account_id: string, due: number, p: Partial<FollowUp>): FollowUp => ({
@@ -78,7 +83,9 @@ export function buildDemoSnapshot(tz: string, now = new Date()): Snapshot {
 
   const goals: Goal[] = [
     { id: "g1", org_id: DEMO_ORG, owner_id: DEMO_USER, title: "Visitas do dia", category: "visitas", period_type: "diaria", start_date: addDays(today, -365), end_date: addDays(today, 365), target_value: 6 },
+    { id: "g2", org_id: DEMO_ORG, owner_id: null, title: "Vendas do mês", category: "vendas", period_type: "mensal", start_date: monthStart(today), end_date: addDays(addMonth(monthStart(today)), -1), target_value: 8 },
+    { id: "g3", org_id: DEMO_ORG, owner_id: null, title: "MRR novo do mês", category: "receita_mrr", period_type: "mensal", start_date: monthStart(today), end_date: addDays(addMonth(monthStart(today)), -1), target_value: 2400 },
   ];
 
-  return { accounts, visits, opportunities, followUps, goals };
+  return { accounts, visits, opportunities, followUps, goals, routes: [], dailyLogs: [], playbooks: [] };
 }

@@ -47,7 +47,7 @@ function SupabaseGate({ children }: { children: ReactNode }) {
       const loadProfile = () =>
         sb
           .from("profiles")
-          .select("full_name, org_id, organizations(name, timezone)")
+          .select("full_name, org_id, role, organizations(name, timezone)")
           .eq("id", auth.user.id)
           .maybeSingle();
       let { data: prof, error } = await loadProfile();
@@ -66,6 +66,7 @@ function SupabaseGate({ children }: { children: ReactNode }) {
         repo: new SupabaseRepo(sb, {
           orgId: prof.org_id, orgName: org?.name ?? "", userId: auth.user.id, userName: prof.full_name,
           timezone: org?.timezone ?? DEFAULT_TZ, mode: "supabase",
+          role: (prof as { role?: "admin" | "manager" | "ae" }).role,
         }),
       });
     };

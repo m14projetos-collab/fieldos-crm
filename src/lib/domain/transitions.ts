@@ -11,7 +11,11 @@ import type {
 } from "./types";
 
 export class DomainError extends Error {
-  constructor(public code: "NEXT_FOLLOWUP_REQUIRED" | "INVALID" | "NOT_FOUND", message: string) {
+  constructor(
+    public code:
+      | "NEXT_FOLLOWUP_REQUIRED" | "INVALID" | "NOT_FOUND" | "MRR_REQUIRED" | "LOSS_REASON_REQUIRED" | "OPEN_OPP_EXISTS",
+    message: string,
+  ) {
     super(message);
   }
 }
@@ -56,15 +60,16 @@ export interface ScheduleVisitInput {
   durationMinutes?: number;
 }
 
-const clone = (s: Snapshot): Snapshot => ({
+export const clone = (s: Snapshot): Snapshot => ({
+  ...s,
   accounts: [...s.accounts],
   visits: [...s.visits],
   opportunities: [...s.opportunities],
   followUps: [...s.followUps],
-  goals: s.goals,
+  routes: [...(s.routes ?? [])],
 });
 
-function replace<T extends { id: string }>(rows: T[], row: T): T[] {
+export function replace<T extends { id: string }>(rows: T[], row: T): T[] {
   return rows.map((r) => (r.id === row.id ? row : r));
 }
 
