@@ -3,9 +3,10 @@
 import { Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useMover } from "@/components/crm/move-dialog";
+import { QuickMrr, needsMrr } from "@/components/crm/quick-mrr";
 import { Button, SectionTitle } from "@/components/ui/primitives";
 import { useActions } from "@/lib/data/hooks";
-import { ACCOUNT_STATUS_LABEL, STAGE_LABEL } from "@/lib/domain/constants";
+import { ACCOUNT_STATUS_LABEL, MRR_SUGGESTIONS, STAGE_LABEL } from "@/lib/domain/constants";
 import { brl, formatDateBR } from "@/lib/domain/dates";
 import { lossLabel } from "@/lib/domain/pipeline";
 import type { Account, AccountStatus, OppStage, Opportunity } from "@/lib/domain/types";
@@ -62,6 +63,7 @@ export function PipelinePanel({ acc, opps }: { acc: Account; opps: Opportunity[]
               {STAGES.map((s) => <option key={s} value={s}>{STAGE_LABEL[s]}</option>)}
             </select>
           </label>
+          {needsMrr(open) ? <QuickMrr opp={open} /> : null}
           <div className="grid grid-cols-3 gap-2">
             <label className="space-y-0.5 text-[11px] text-slate-400">MRR (R$)
               <input className={field} inputMode="decimal" value={mrr} onChange={(e) => setMrr(e.target.value)} placeholder="0" />
@@ -135,6 +137,11 @@ function CreateOpp({ accountId }: { accountId: string }) {
         </label>
         <label className="space-y-0.5 text-[11px] text-slate-400">MRR (R$)
           <input className={field} inputMode="decimal" value={mrr} onChange={(e) => setMrr(e.target.value)} placeholder="opcional" />
+          <span className="flex gap-1">
+            {MRR_SUGGESTIONS.map((v) => (
+              <button key={v} type="button" className="rounded bg-slate-800 px-1 text-[10px] text-slate-300 hover:bg-slate-700" onClick={() => setMrr(String(v))}>{v}</button>
+            ))}
+          </span>
         </label>
         <label className="space-y-0.5 text-[11px] text-slate-400">Plano
           <input className={field} value={plan} onChange={(e) => setPlan(e.target.value)} placeholder="opcional" />

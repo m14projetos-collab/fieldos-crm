@@ -13,6 +13,7 @@ import { type EnrichedAccount, weightedForecast } from "@/lib/domain/enrich";
 import { lossLabel } from "@/lib/domain/pipeline";
 import type { AccountStatus, OppStage, Opportunity } from "@/lib/domain/types";
 import { useUi } from "@/lib/ui-store";
+import { QuickMrr, needsMrr } from "./quick-mrr";
 import { useMover } from "./move-dialog";
 
 type Tab = "tabela" | "prospeccao" | "pipeline" | "regioes";
@@ -427,7 +428,8 @@ function PipelineBoard({ opps, enriched, today }: { opps: Opportunity[]; enriche
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        <Kpi icon={Target} label="Pipeline aberto" value={brl(open.reduce((s, o) => s + o.mrr_value, 0))} sub={`${open.length} oportunidades`} />
+        <Kpi icon={Target} label="Pipeline aberto" value={brl(open.reduce((s, o) => s + o.mrr_value, 0))}
+          sub={`${open.length} oportunidades${open.filter(needsMrr).length ? ` · ${open.filter(needsMrr).length} sem MRR` : ""}`} warn={open.some(needsMrr)} />
         <Kpi icon={TrendingUp} label="Forecast ponderado" value={brl(weightedForecast(open))} sub="MRR × probabilidade da etapa" />
         <Kpi icon={TrendingUp} label="Fechado no mês" value={brl(wonMonth.reduce((s, o) => s + o.mrr_value, 0))} sub={`${wonMonth.length} vendas · ${lostMonth.length} perdidas`} />
         <Kpi icon={Clock} label={`Paradas ≥ ${STALE_DAYS} dias`} value={String(stale)} sub="sem mudar de etapa" warn={stale > 0} />
@@ -489,6 +491,7 @@ function PipelineBoard({ opps, enriched, today }: { opps: Opportunity[]; enriche
                           {relativeDayLabel(fu.due_date, today)}: {fu.title}
                         </div>
                       ) : null}
+                      {needsMrr(o) ? <QuickMrr opp={o} className="mt-1.5" /> : null}
                       <div className="mt-1.5">
                         <MoveMenu label={`Mover ${a?.name ?? o.title}`} value={o.stage} options={cols} onChange={(v) => move(o.id, v)} />
                       </div>

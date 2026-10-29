@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Badge, Button, Card, SectionTitle, cn, scoreColor } from "@/components/ui/primitives";
 import { useActions, useEnriched, useRepo, useSnapshot } from "@/lib/data/hooks";
+import { useUi } from "@/lib/ui-store";
+import { AccountLink } from "@/components/ui/account-link";
 import {
   AUDIT_ITEMS, CHAVE_STAGES, ICP_QUESTIONS, MIN_SAMPLE, OBJECTIONS, PERSONA_GUIDE, buildAuditPrompt, chaveMetrics, icpResult,
   isAudit, metricAlert, scoreAudit,
@@ -78,6 +80,7 @@ export function ChaveView() {
 }
 
 function AccountPicker({ all, value, onChange }: { all: EnrichedAccount[]; value?: EnrichedAccount; onChange: (id: string | null) => void }) {
+  const openDrawer = useUi((s) => s.openDrawer);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const term = q.trim().toLowerCase();
@@ -86,10 +89,13 @@ function AccountPicker({ all, value, onChange }: { all: EnrichedAccount[]; value
     return (
       <Card className="flex items-center justify-between gap-2 p-3">
         <div className="min-w-0">
-          <div className="truncate text-sm font-bold text-white">{value.name}</div>
+          <AccountLink id={value.id} name={value.name} className="text-sm font-bold text-white" />
           <div className="text-[11px] text-slate-400">{ACCOUNT_STATUS_LABEL[value.status]} · {value.neighborhood ?? "sem bairro"} · {PERSONA_LABEL[value.persona]}</div>
         </div>
-        <Button size="sm" onClick={() => { setOpen(true); setQ(""); }}>Trocar</Button>
+        <div className="flex shrink-0 gap-1.5">
+          <Button size="sm" variant="outline" onClick={() => openDrawer(value.id)}>Ficha</Button>
+          <Button size="sm" onClick={() => { setOpen(true); setQ(""); }}>Trocar</Button>
+        </div>
       </Card>
     );
   return (
@@ -131,11 +137,12 @@ function IcpTab({ acc, all, onPick }: { acc?: EnrichedAccount; all: EnrichedAcco
         <ul className="space-y-1.5">
           {toQualify.map((a) => (
             <li key={a.id}>
-              <button type="button" onClick={() => onPick(a.id)} className="flex w-full items-center gap-2 rounded-lg bg-slate-950 px-3 py-2 text-left hover:bg-slate-800">
+              <div className="flex w-full items-center gap-2 rounded-lg bg-slate-950 px-3 py-2">
                 <span className={cn("rounded px-1 font-mono text-[10px] font-bold", scoreColor(a.commercial_score))}>{a.commercial_score}</span>
-                <span className="min-w-0 flex-1 truncate text-sm text-slate-100">{a.name}</span>
-                <span className="text-[11px] text-slate-500">{a.neighborhood}</span>
-              </button>
+                <span className="min-w-0 flex-1"><AccountLink id={a.id} name={a.name} className="text-sm text-slate-100" /></span>
+                <span className="hidden text-[11px] text-slate-500 sm:inline">{a.neighborhood}</span>
+                <Button size="sm" variant="primary" onClick={() => onPick(a.id)}>Qualificar</Button>
+              </div>
             </li>
           ))}
           {!toQualify.length ? <p className="text-xs text-slate-500">Todas as contas ativas já têm ICP respondido.</p> : null}

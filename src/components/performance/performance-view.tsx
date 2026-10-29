@@ -257,7 +257,7 @@ function FunnelBlock({ today }: { today: string }) {
   const [by, setBy] = useState<"persona" | "segment" | "neighborhood" | "current_system">("persona");
   const accounts = useMemo(() => [...enriched.values()], [enriched]);
   if (!data) return null;
-  const f = funnel(accounts, data.opportunities);
+  const f = funnel(accounts);
   const rows = conversionBy(accounts, (a) => (by === "persona" ? PERSONA_LABEL[a.persona] : a[by]));
   const series = activitySeries(data, session.timezone, today, 14);
   const maxAct = Math.max(1, ...series.map((d) => d.visits + d.followUps));

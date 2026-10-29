@@ -115,3 +115,6 @@ export const OUTCOME_DEFAULTS: Record<VisitOutcome, { days: number; channel: Fol
   sem_interesse: { days: 90, channel: "whatsapp", title: "Recuperação: nova abordagem (Central de Recuperação)" },
   fechado: { days: 7, channel: "visita", title: "Pós-venda 7 dias: confirmar resultado e pedir indicação" },
 };
+
+/** Sugestões de MRR (R$/mês) no preenchimento rápido de propostas. Valores pedidos pelo Michel em 29/10. */
+export const MRR_SUGGESTIONS = [349, 489, 649] as const;

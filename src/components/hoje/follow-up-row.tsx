@@ -31,7 +31,7 @@ export function FollowUpRow({
       <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           {showAccount ? (
-            <button type="button" onClick={() => openDrawer(account.id)} className="block truncate text-left text-sm font-semibold text-white hover:text-brand-300">
+            <button type="button" onClick={() => openDrawer(account.id)} title="Abrir ficha" className="block max-w-full truncate text-left text-sm font-semibold text-white underline decoration-slate-600 decoration-dotted underline-offset-2 hover:text-brand-300">
               {account.name}
             </button>
           ) : null}

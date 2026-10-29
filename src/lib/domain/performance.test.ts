@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildDemoSnapshot } from "@/lib/data/demo-seed";
-import { enrichAll } from "./enrich";
+import { enrichAll, funnelReach } from "./enrich";
 import { conversionBy, funnel, goalActual, goalStatus, goalWindow, monthEnd, weekStart, workdays } from "./performance";
 import type { Goal } from "./types";
 
@@ -33,11 +33,24 @@ describe("metas recorrentes (paridade com vw_goal_progress 0010)", () => {
   });
 });
 
+describe("regra de MQL (29/10)", () => {
+  it("morno importado sem contato é Lead; morno com contato, quente ou score ≥ 40 é MQL; SQL e cliente por etapa", () => {
+    expect(funnelReach({ status: "lead_importado", interest_level: "morno" }, [], 33)).toBe(0);
+    expect(funnelReach({ status: "primeiro_contato", interest_level: "morno" }, [], 33)).toBe(1);
+    expect(funnelReach({ status: "lead_importado", interest_level: "quente" }, [], 10)).toBe(1);
+    expect(funnelReach({ status: "lead_importado", interest_level: "frio" }, [], 40)).toBe(1);
+    expect(funnelReach({ status: "agendado", interest_level: "morno" }, [], 33)).toBe(2);
+    expect(funnelReach({ status: "discovery", interest_level: "frio" }, [{ stage: "qualificado" }], 0)).toBe(2);
+    expect(funnelReach({ status: "discovery", interest_level: "frio" }, [{ stage: "lead" }], 0)).toBe(0);
+    expect(funnelReach({ status: "fechado", interest_level: "frio" }, [], 0)).toBe(3);
+  });
+});
+
 describe("funil e conversão", () => {
   it("funil é cumulativo e conversão usa só contas decididas", () => {
     const s = buildDemoSnapshot(TZ, new Date("2026-10-29T18:00:00Z"));
     const acc = [...enrichAll(s).values()];
-    const f = funnel(acc, s.opportunities);
+    const f = funnel(acc);
     expect(f[0].count).toBe(acc.length);
     expect(f[0].count).toBeGreaterThanOrEqual(f[1].count);
     expect(f[1].count).toBeGreaterThanOrEqual(f[2].count);

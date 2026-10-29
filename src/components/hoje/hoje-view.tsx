@@ -2,6 +2,7 @@
 import { AlertTriangle, CalendarCheck, Clock, MapPin, MessageCircle, Navigation } from "lucide-react";
 import { useMemo } from "react";
 import { FollowUpRow } from "./follow-up-row";
+import { QuickMrr, needsMrr } from "@/components/crm/quick-mrr";
 import { Badge, Button, Card, SectionTitle, cn, scoreColor } from "@/components/ui/primitives";
 import { mapsLink, preVisitScript, waLink, waNumber } from "@/lib/domain/cadence";
 import { ACCOUNT_STATUS_LABEL, OUTCOME_LABEL, PERSONA_LABEL, VISIT_TYPE_LABEL } from "@/lib/domain/constants";
@@ -21,6 +22,7 @@ export function HojeView() {
   if (isLoading) return <Skeleton />;
   if (error || !data || !t) return <Card className="text-sm text-red-300">Erro ao carregar: {String(error)}</Card>;
 
+  const noMrr = data.opportunities.filter(needsMrr);
   const visitById = new Map(data.visits.map((v) => [v.id, v]));
   const next = t.nextVisit;
   const nextAcc = next ? enriched.get(next.account_id) : null;
@@ -42,7 +44,7 @@ export function HojeView() {
           progress={t.visitsGoal ? t.visitsDoneToday / t.visitsGoal : undefined} />
         <Kpi label="Follow-ups" value={String(t.fuDueToday + t.fuOverdue)}
           hint={t.fuOverdue ? `${t.fuOverdue} vencido(s)` : "nenhum vencido"} danger={t.fuOverdue > 0} />
-        <Kpi label="Propostas em aberto" value={String(t.openProposals)} hint={`Forecast ${brl(t.forecast)}/mês`} />
+        <Kpi label="Propostas em aberto" value={String(t.openProposals)} hint={noMrr.length ? `Forecast ${brl(t.forecast)}/mês · ${noMrr.length} sem MRR` : `Forecast ${brl(t.forecast)}/mês`} danger={noMrr.length > 0} />
         <Kpi label="MRR fechado no mês" value={brl(t.mrrMonth)} hint="soma do pipeline fechado" />
       </div>
 
@@ -55,7 +57,7 @@ export function HojeView() {
               <div className="space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <button type="button" onClick={() => openDrawer(nextAcc.id)} className="text-left text-lg font-bold text-white hover:text-brand-300">
+                    <button type="button" onClick={() => openDrawer(nextAcc.id)} title="Abrir ficha" className="text-left text-lg font-bold text-white underline decoration-slate-600 decoration-dotted underline-offset-4 hover:text-brand-300">
                       {nextAcc.name}
                     </button>
                     <div className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-400">
@@ -102,6 +104,23 @@ export function HojeView() {
         </div>
 
         <div className="min-w-0 space-y-5 lg:col-span-2">
+          {/* Propostas sem MRR: sem valor, o forecast e o pipeline aberto ficam zerados */}
+          {noMrr.length ? (
+            <Card className="border-amber-500/30">
+              <SectionTitle>Propostas sem MRR ({noMrr.length})</SectionTitle>
+              <ul className="space-y-2">
+                {noMrr.map((o) => (
+                  <li key={o.id} className="space-y-1">
+                    <button type="button" onClick={() => openDrawer(o.account_id)} className="block max-w-full truncate text-left text-sm font-semibold text-white underline decoration-slate-600 decoration-dotted underline-offset-2 hover:text-brand-300">
+                      {enriched.get(o.account_id)?.name ?? o.title}
+                    </button>
+                    <QuickMrr opp={o} />
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : null}
+
           {/* Agenda do dia */}
           <Card>
             <SectionTitle>Agenda de hoje ({t.todayVisits.length})</SectionTitle>
@@ -115,7 +134,7 @@ export function HojeView() {
                     <li key={v.id} className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950/50 p-2.5">
                       <span className="w-11 shrink-0 font-mono text-xs text-slate-400">{timeInTz(v.scheduled_at, tz)}</span>
                       <button type="button" onClick={() => openDrawer(a.id)} className="min-w-0 flex-1 text-left">
-                        <div className={cn("truncate text-sm font-semibold", done ? "text-slate-500 line-through" : "text-white")}>{a.name}</div>
+                        <div className={cn("truncate text-sm font-semibold underline decoration-slate-600 decoration-dotted underline-offset-2", done ? "text-slate-500 line-through" : "text-white")}>{a.name}</div>
                         <div className="truncate text-[11px] text-slate-500">{a.neighborhood || "sem bairro"} · {VISIT_TYPE_LABEL[v.visit_type]}</div>
                       </button>
                       {done ? (

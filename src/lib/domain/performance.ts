@@ -133,22 +133,15 @@ export function activitySeries(s: Snapshot, tz: string, today: string, days: num
 // ---------------------------------------------------------------------------
 export const FUNNEL_STEPS = [
   { id: "lead", label: "Lead", hint: "Toda a base" },
-  { id: "mql", label: "MQL", hint: "Sinal de interesse (morno/quente) ou já avançou" },
-  { id: "sql", label: "SQL", hint: "Virou oportunidade real" },
+  { id: "mql", label: "MQL", hint: "Quente, score ≥ 40 ou morno com contato feito" },
+  { id: "sql", label: "SQL", hint: "Qualificado, Demo/Visita, Proposta ou Negociação" },
   { id: "cliente", label: "Cliente", hint: "Fechado" },
 ] as const;
 
 /** Funil cumulativo: quem chegou a SQL também passou por MQL e Lead. Perdidos contam até onde chegaram. */
-export function funnel(accounts: EnrichedAccount[], opps: Snapshot["opportunities"]) {
-  const hadOpp = new Set(opps.map((o) => o.account_id));
-  const reached = (a: EnrichedAccount) => {
-    if (a.funnel_stage === "cliente") return 3;
-    if (a.funnel_stage === "sql" || hadOpp.has(a.id)) return 2;
-    if (a.funnel_stage === "mql" || a.interest_level !== "frio") return 1;
-    return 0;
-  };
+export function funnel(accounts: EnrichedAccount[]) {
   const counts = [0, 0, 0, 0];
-  for (const a of accounts) for (let i = 0; i <= reached(a); i++) counts[i]++;
+  for (const a of accounts) for (let i = 0; i <= a.funnel_reach; i++) counts[i]++;
   return FUNNEL_STEPS.map((st, i) => ({
     ...st,
     count: counts[i],

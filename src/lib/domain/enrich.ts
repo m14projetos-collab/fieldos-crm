@@ -12,6 +12,32 @@ export interface EnrichedAccount extends Account {
   next_best_action: string;
   missing_field: string | null;
   funnel_stage: "lead" | "mql" | "sql" | "cliente" | "perdido";
+  /** até onde a conta chegou no funil (0 lead, 1 MQL, 2 SQL, 3 cliente); perdidos contam até onde chegaram */
+  funnel_reach: 0 | 1 | 2 | 3;
+}
+
+/** Status de prospecção sem contato feito: "morno" vindo da importação não é sinal real de interesse. */
+export const UNTOUCHED_STATUSES: Account["status"][] = ["lead_frio", "novo_lead", "lead_importado", "a_validar"];
+const SQL_STATUSES: Account["status"][] = ["agendado", "demo_realizada", "proposta_enviada", "negociacao"];
+const SQL_STAGES: Opportunity["stage"][] = ["qualificado", "demo_agendada", "proposta_enviada", "negociacao", "fechado", "perdido"];
+export const MQL_MIN_SCORE = 40;
+const FUNNEL_BY_REACH = ["lead", "mql", "sql", "cliente"] as const;
+
+/**
+ * Regra do funil B2B:
+ * Cliente = fechado. SQL = oportunidade qualificada (Qualificado, Demo/Visita, Proposta, Negociação) ou conta nesses status.
+ * MQL = quente, score ≥ 40, ou morno com contato já feito. Lead = o resto.
+ */
+export function funnelReach(
+  a: Pick<Account, "status" | "interest_level">,
+  opps: Pick<Opportunity, "stage">[],
+  score: number,
+): 0 | 1 | 2 | 3 {
+  if (a.status === "fechado" || opps.some((o) => o.stage === "fechado")) return 3;
+  if (SQL_STATUSES.includes(a.status) || opps.some((o) => SQL_STAGES.includes(o.stage))) return 2;
+  if (a.interest_level === "quente" || score >= MQL_MIN_SCORE) return 1;
+  if (a.interest_level === "morno" && !UNTOUCHED_STATUSES.includes(a.status)) return 1;
+  return 0;
 }
 
 const DAY_MS = 86_400_000;
@@ -90,14 +116,9 @@ export function enrichAccount(
   const oppsActive = opps.filter((o) => o.stage !== "perdido").length;
   const mrrOpen = opps.filter((o) => o.stage !== "perdido" && o.stage !== "fechado").reduce((s, o) => s + Number(o.mrr_value), 0);
   const mrrClosed = opps.filter((o) => o.stage === "fechado").reduce((s, o) => s + Number(o.mrr_value), 0);
-  const hasSql = opps.some((o) => ["qualificado", "demo_agendada", "proposta_enviada", "negociacao"].includes(o.stage));
-  const hasWon = opps.some((o) => o.stage === "fechado");
-  const funnel: EnrichedAccount["funnel_stage"] =
-    a.status === "perdido" ? "perdido"
-    : a.status === "fechado" || hasWon ? "cliente"
-    : hasSql ? "sql"
-    : a.interest_level === "quente" || a.interest_level === "morno" ? "mql"
-    : "lead";
+  const score = commercialScore(a, visitsDone, fus.length, oppsActive, now);
+  const reach = funnelReach(a, opps, score);
+  const funnel: EnrichedAccount["funnel_stage"] = a.status === "perdido" ? "perdido" : FUNNEL_BY_REACH[reach];
 
   return {
     ...a,
@@ -107,7 +128,8 @@ export function enrichAccount(
     opps_active: oppsActive,
     mrr_open: mrrOpen,
     mrr_closed: mrrClosed,
-    commercial_score: commercialScore(a, visitsDone, fus.length, oppsActive, now),
+    commercial_score: score,
+    funnel_reach: reach,
     next_best_action: nextBestAction(a),
     missing_field: missingField(a, next),
     funnel_stage: funnel,

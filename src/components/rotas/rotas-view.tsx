@@ -19,6 +19,7 @@ import {
 import { routeFor } from "@/lib/domain/pipeline";
 import type { Account, Visit } from "@/lib/domain/types";
 import { useUi } from "@/lib/ui-store";
+import { AccountLink } from "@/components/ui/account-link";
 
 const OPEN = ["agendada", "em_andamento", "reagendada"];
 const field = "rounded-lg border border-slate-700 bg-slate-950 px-2.5 py-2 text-sm text-white focus:border-brand-500 focus:outline-none";
@@ -203,7 +204,7 @@ export function RotasView() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Paradas" value={String(stops.length)} sub={done.length ? `${done.length} já feitas` : undefined} />
         <Stat label="Distância" value={`${tot.km.toFixed(1)} km`} sub={plan?.source === "ruas" ? "por ruas (OSRM)" : `linha reta × ${settings.circuity}`} />
         <Stat label="Tempo total" value={fmtMin(tot.minutes + visitMin)} sub={`${fmtMin(tot.minutes)} dirigindo + ${fmtMin(visitMin)} em visita`} />
@@ -286,7 +287,7 @@ export function RotasView() {
                     <div className="flex items-start gap-3">
                       <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-brand-600 text-xs font-bold text-white">{i + 1}</span>
                       <div className="min-w-0 flex-1">
-                        <button type="button" onClick={() => openDrawer(s.a.id)} className="block max-w-full truncate text-left text-sm font-semibold text-slate-100 hover:underline">
+                        <button type="button" onClick={() => openDrawer(s.a.id)} title="Abrir ficha" className="block max-w-full truncate text-left text-sm font-semibold text-slate-100 underline decoration-slate-600 decoration-dotted underline-offset-2 hover:text-brand-300">
                           {s.a.name}
                         </button>
                         <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-400">
@@ -356,7 +357,7 @@ export function RotasView() {
           <div className="mt-3 space-y-1 border-t border-slate-800 pt-3">
             {done.map((v) => (
               <div key={v.id} className="flex justify-between text-[11px] text-slate-500">
-                <span className="truncate">✓ {accOf(v)?.name}</span>
+                <span className="flex min-w-0 items-center gap-1">✓ {accOf(v) ? <AccountLink id={accOf(v)!.id} name={accOf(v)!.name} /> : null}</span>
                 <span>{v.status}</span>
               </div>
             ))}
@@ -381,10 +382,11 @@ function fmtMin(m: number) {
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <Card className="p-3">
-      <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</div>
-      <div className="mt-1 font-mono text-lg font-extrabold text-white">{value}</div>
-      {sub ? <div className="text-[10px] text-slate-500">{sub}</div> : null}
+    <Card className="min-w-0 p-3">
+      <div className="truncate text-[10px] font-semibold uppercase tracking-wider text-slate-500">{label}</div>
+      {/* nowrap: valor nunca quebra no meio da palavra ("Sa/lva"); se faltar espaço, reticências */}
+      <div className="mt-1 truncate whitespace-nowrap font-mono text-base font-extrabold text-white sm:text-lg" title={value}>{value}</div>
+      {sub ? <div className="truncate text-[10px] text-slate-500" title={sub}>{sub}</div> : null}
     </Card>
   );
 }
@@ -436,7 +438,7 @@ function FitIn({ stops, dayAccountIds, enriched, date, radiusKm }: {
           <li key={a.id} className="flex items-center gap-2 rounded-lg bg-slate-950 px-3 py-2">
             <span className={cn("rounded px-1 font-mono text-[10px] font-bold", scoreColor(a.commercial_score))}>{a.commercial_score}</span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-xs font-semibold text-slate-100">{a.name}</span>
+              <AccountLink id={a.id} name={a.name} className="text-xs font-semibold text-slate-100" />
               <span className="block truncate text-[10px] text-slate-500">{a.neighborhood} · {km.toFixed(1)} km · {a.next_followup?.title}</span>
             </span>
             <Button size="sm" onClick={() => openSchedule(a.id)}>Agendar</Button>
@@ -561,7 +563,7 @@ function FieldDayPlanner({ date, tz, enriched, settings, origin, busyDay }: {
                   <li key={f.a.id} className="flex items-center gap-2 rounded-lg bg-slate-950 px-3 py-1.5 text-xs">
                     <span className="w-5 text-slate-500">{i + 1}</span>
                     <span className="font-mono text-slate-200">{timeInTz(f.time, tz)}</span>
-                    <span className="min-w-0 flex-1 truncate text-slate-100">{f.a.name}</span>
+                    <span className="min-w-0 flex-1"><AccountLink id={f.a.id} name={f.a.name} className="text-slate-100" /></span>
                     <Badge>{ACCOUNT_STATUS_LABEL[f.a.status]}</Badge>
                     <button type="button" aria-label={`Tirar ${f.a.name}`} className="text-slate-500 hover:text-red-300"
                       onClick={() => setSkip((s) => new Set(s).add(f.a.id))}>×</button>
