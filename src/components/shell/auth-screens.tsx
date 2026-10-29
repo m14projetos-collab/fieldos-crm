@@ -8,20 +8,29 @@ const input =
   "w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2.5 text-sm text-white placeholder:text-slate-500 focus:border-brand-500 focus:outline-none";
 
 export function LoginScreen() {
+  const [mode, setMode] = useState<"senha" | "link">("senha");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [sent, setSent] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const send = async () => {
+  const submit = async () => {
     setBusy(true);
     setErr(null);
-    const { error } = await getSupabase().auth.signInWithOtp({
+    const sb = getSupabase();
+    if (mode === "senha") {
+      const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
+      setBusy(false);
+      if (error) setErr(translateAuthError(error.message));
+      return;
+    }
+    const { error } = await sb.auth.signInWithOtp({
       email: email.trim(),
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: window.location.origin, shouldCreateUser: false },
     });
     setBusy(false);
-    if (error) setErr(error.message);
+    if (error) setErr(translateAuthError(error.message));
     else setSent(true);
   };
 
@@ -30,20 +39,39 @@ export function LoginScreen() {
       <Card className="w-full max-w-sm space-y-4 p-6">
         <div>
           <div className="text-lg font-extrabold text-white">FieldOS <span className="text-brand-400">CRM</span></div>
-          <p className="text-xs text-slate-400">Entre com seu e-mail. Enviamos um link de acesso, sem senha.</p>
+          <p className="text-xs text-slate-400">
+            {mode === "senha" ? "Entre com seu e-mail e senha." : "Enviamos um link de acesso para o seu e-mail."}
+          </p>
         </div>
         {sent ? (
           <p className="rounded-lg bg-emerald-500/10 p-3 text-sm text-emerald-300">Link enviado para {email}. Abra no mesmo aparelho.</p>
         ) : (
-          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); void send(); }}>
+          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); void submit(); }}>
             <input className={input} type="email" required autoComplete="email" placeholder="voce@empresa.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <Button variant="primary" className="w-full" disabled={busy || !email} type="submit">Enviar link de acesso</Button>
+            {mode === "senha" ? (
+              <input className={input} type="password" required autoComplete="current-password" placeholder="Senha" value={password} onChange={(e) => setPassword(e.target.value)} />
+            ) : null}
+            <Button variant="primary" className="w-full" disabled={busy || !email || (mode === "senha" && !password)} type="submit">
+              {busy ? "Aguarde…" : mode === "senha" ? "Entrar" : "Enviar link de acesso"}
+            </Button>
             {err ? <p className="text-xs text-red-400">{err}</p> : null}
+            <button type="button" className="w-full text-center text-xs text-slate-400 underline" onClick={() => { setMode(mode === "senha" ? "link" : "senha"); setErr(null); }}>
+              {mode === "senha" ? "Entrar com link por e-mail" : "Entrar com senha"}
+            </button>
           </form>
         )}
       </Card>
     </div>
   );
+}
+
+export function translateAuthError(msg: string) {
+  const m = msg.toLowerCase();
+  if (m.includes("invalid login credentials")) return "E-mail ou senha incorretos.";
+  if (m.includes("rate limit")) return "Muitos e-mails enviados na última hora. Entre com senha ou tente mais tarde.";
+  if (m.includes("signups not allowed") || m.includes("user not found")) return "Este e-mail não tem acesso. Peça um convite ao administrador.";
+  if (m.includes("password should be")) return "A senha precisa ter pelo menos 8 caracteres.";
+  return msg;
 }
 
 const slugify = (s: string) =>

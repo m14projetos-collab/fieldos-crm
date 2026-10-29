@@ -169,6 +169,9 @@ select pg_temp.assert(
     select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.prokind = 'f' and has_function_privilege('anon', p.oid, 'execute')),
   'anon sem EXECUTE em funções do public');
+select pg_temp.assert(
+  not exists (select 1 from information_schema.role_table_grants where grantee = 'anon' and table_schema = 'public'),
+  'anon sem permissão em tabelas e views');
 select pg_temp.assert(has_function_privilege('authenticated', 'public.create_organization(text,text,text)', 'execute'),
   'authenticated ainda cria organização');
 

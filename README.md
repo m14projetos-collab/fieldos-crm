@@ -18,7 +18,7 @@ regras de negócio do banco. "Restaurar dados de exemplo" fica na barra lateral.
 
 ## Ligar ao Supabase (plano gratuito)
 
-> Projeto atual: `tdvefdpnfglomxfafcib` (fieldos-crm). As 6 migrations **já foram aplicadas** em 2026-10-29
+> Projeto atual: `tdvefdpnfglomxfafcib` (fieldos-crm), app em https://fieldos-crm.vercel.app. As 8 migrations **já foram aplicadas** em 2026-10-29
 > pelo conector do Supabase; pule para o passo 3. Como foram aplicadas pelo conector, as versões no histórico
 > remoto não batem com os nomes dos arquivos: **não rode `supabase db push` nesse projeto** sem antes alinhar
 > com `supabase migration repair` (senão a CLI tenta recriar as tabelas e falha).
@@ -33,6 +33,16 @@ regras de negócio do banco. "Restaurar dados de exemplo" fica na barra lateral.
 5. `npm run dev`, entre com seu e-mail (link mágico) e crie a organização.
 
 A chave anon é pública por design; a segurança vem do RLS. Nunca coloque a `service_role` no front-end.
+
+## Acesso de usuários
+
+- Login padrão: **e-mail + senha**. O link por e-mail continua disponível, mas só para quem já tem conta
+  (`shouldCreateUser: false`), e o e-mail embutido do Supabase só entrega para membros do time do projeto,
+  com poucas mensagens por hora. Para vários usuários, configure SMTP próprio (ex.: Resend).
+- Novo usuário: o admin cadastra o convite (`public.org_invites`: e-mail, nome, papel) e cria o usuário no painel
+  do Supabase (*Authentication → Users → Add user*, com senha e *Auto Confirm User*). No primeiro login,
+  `accept_invite()` coloca a pessoa na organização do convite.
+- Cada usuário troca a própria senha e sai pelo botão de conta (ícone de pessoa).
 
 ## Testes
 

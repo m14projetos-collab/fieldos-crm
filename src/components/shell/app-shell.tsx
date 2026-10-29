@@ -1,8 +1,9 @@
 "use client";
-import { CalendarCheck, Command, Gauge, KanbanSquare, Map as MapIcon, Plus, Search, Sparkles, Sun } from "lucide-react";
+import { CalendarCheck, Command, Gauge, KanbanSquare, Map as MapIcon, Plus, Search, Sparkles, Sun, UserRound } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useState } from "react";
+import { AccountDialog } from "./account-dialog";
 import { AccountDrawer } from "@/components/drawer/account-drawer";
 import { NewLeadDialog, ScheduleVisitDialog } from "@/components/dialogs/lead-visit-dialogs";
 import { CommandPalette } from "@/components/palette/command-palette";
@@ -24,6 +25,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const repo = useRepo();
   const { setPalette, openQuickLog, setNewLead } = useUi();
+  const [accountOpen, setAccountOpen] = useState(false);
+  const isSupabase = repo.session.mode === "supabase";
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -69,7 +72,13 @@ export function AppShell({ children }: { children: ReactNode }) {
               </button>
             </div>
           ) : null}
-          <div>{repo.session.userName}</div>
+          {isSupabase ? (
+            <button type="button" onClick={() => setAccountOpen(true)} className="flex items-center gap-1.5 hover:text-slate-300">
+              <UserRound size={13} /> {repo.session.userName}
+            </button>
+          ) : (
+            <div>{repo.session.userName}</div>
+          )}
         </div>
       </aside>
 
@@ -93,6 +102,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         <Button variant="primary" size="sm" onClick={() => setNewLead(true)}>
           <Plus size={14} /> <span className="hidden sm:inline">Novo lead</span>
         </Button>
+        {isSupabase ? (
+          <Button variant="ghost" size="sm" aria-label="Minha conta" onClick={() => setAccountOpen(true)} className="md:hidden">
+            <UserRound size={15} />
+          </Button>
+        ) : null}
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pb-28 pt-4 md:pb-10">{children}</main>
@@ -120,6 +134,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <CommandPalette />
       <NewLeadDialog />
       <ScheduleVisitDialog />
+      {isSupabase ? <AccountDialog open={accountOpen} onOpenChange={setAccountOpen} userName={repo.session.userName} /> : null}
     </div>
   );
 }
