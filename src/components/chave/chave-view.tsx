@@ -1,6 +1,7 @@
 "use client";
 // CHAVE: qualificação ICP, objeções por persona, auditoria estruturada, termômetro e playbooks.
-import { BookOpen, ClipboardCheck, Copy, Gauge, MessageSquareWarning, Plus, Search, ShieldCheck, Trash2 } from "lucide-react";
+import { BookOpen, ClipboardCheck, Copy, Gauge, MessageSquareWarning, Plus, Search, ShieldCheck, Trash2, Zap } from "lucide-react";
+import { missingDefaults } from "@/lib/domain/playbooks";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Badge, Button, Card, SectionTitle, cn, scoreColor } from "@/components/ui/primitives";
@@ -397,13 +398,29 @@ function PlaybooksTab() {
   const actions = useActions();
   const [edit, setEdit] = useState<Playbook | null>(null);
   const list = [...(data?.playbooks ?? [])].sort((a, b) => a.category.localeCompare(b.category) || a.title.localeCompare(b.title));
+  const missing = missingDefaults(data?.playbooks ?? []);
+  const [loading, setLoading] = useState(false);
   const blank = (): Playbook => ({ id: crypto.randomUUID(), org_id: "", title: "", category: PB_CATEGORIES[0], funnel_stage: null, channel: null, content_md: "", ai_enabled: true, updated_at: "" });
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs text-slate-400">Scripts e respostas do time. A base do método (objeções, personas, ICP) já está nas outras abas.</p>
-        <Button size="sm" variant="primary" onClick={() => setEdit(blank())}><Plus size={13} /> Novo</Button>
+        <div className="flex shrink-0 flex-wrap justify-end gap-1.5">
+          {missing.length ? (
+            <Button size="sm" disabled={loading} onClick={async () => {
+              setLoading(true);
+              await actions.savePlaybooks(
+                missing.map((p) => ({ id: crypto.randomUUID(), title: p.title, category: p.category, funnel_stage: p.funnel_stage, channel: p.channel, content_md: p.content_md, ai_enabled: true })),
+                `${missing.length} playbook(s) padrão Takeat carregados.`,
+              );
+              setLoading(false);
+            }}>
+              <Zap size={13} /> {loading ? "Carregando…" : `Carregar Playbooks Padrão Takeat (${missing.length})`}
+            </Button>
+          ) : null}
+          <Button size="sm" variant="primary" onClick={() => setEdit(blank())}><Plus size={13} /> Novo</Button>
+        </div>
       </div>
       {edit ? (
         <Card className="space-y-2">

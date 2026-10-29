@@ -19,6 +19,7 @@ import { useActions, useEnriched, useRepo, useScriptCtx, useSnapshot } from "@/l
 import { useUi } from "@/lib/ui-store";
 import { PainCalculator } from "./pain-calculator";
 import { PipelinePanel } from "./pipeline-panel";
+import { RecommendedScript } from "./recommended-script";
 
 export function AccountDrawer() {
   const { drawerAccountId, closeDrawer, openSchedule } = useUi();
@@ -96,6 +97,8 @@ export function AccountDrawer() {
                     <p className="text-xs text-slate-400">Nenhuma. {acc.status === "fechado" || acc.status === "perdido" ? "" : "Contas em negociação precisam de uma: agende uma visita ou registre um contato."}</p>
                   )}
                 </section>
+
+                <RecommendedScript acc={acc} playbooks={data?.playbooks ?? []} />
 
                 <AccountData acc={acc} />
 

@@ -134,6 +134,10 @@ export function useActions() {
     deleteGoal: (id: string) => run(id, (s, x) => applyDeleteGoal(s, x), (x) => repo.deleteGoal(x), "Meta removida."),
     saveDailyLog: (d: DailyLogInput) => run(d, applySaveDailyLog, (x) => repo.saveDailyLog(x), "Daily salvo."),
     savePlaybook: (p: PlaybookInput) => run(p, applySavePlaybook, (x) => repo.savePlaybook(x), "Playbook salvo."),
+    savePlaybooks: (ps: PlaybookInput[], msg: string) =>
+      run(ps, (s, x, c) => x.reduce((acc, p) => applySavePlaybook(acc, p, c), s), async (x) => {
+        for (const p of x) await repo.savePlaybook(p);
+      }, msg),
     deletePlaybook: (id: string) => run(id, (s, x) => applyDeletePlaybook(s, x), (x) => repo.deletePlaybook(x), "Playbook removido."),
   };
 }
