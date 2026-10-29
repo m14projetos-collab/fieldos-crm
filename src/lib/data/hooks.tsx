@@ -2,7 +2,7 @@
 // Cache único (TanStack Query) + mutações otimistas: a UI muda na hora usando as
 // mesmas regras do banco (transitions.ts); o servidor confirma e o cache é revalidado.
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createContext, useCallback, useContext, useEffect, useMemo } from "react";
+import { type ReactNode, createContext, useCallback, useContext, useEffect, useMemo } from "react";
 import { toast } from "sonner";
 import { type EnrichedAccount, enrichAll } from "@/lib/domain/enrich";
 import {
@@ -14,7 +14,16 @@ import type { Account, Snapshot } from "@/lib/domain/types";
 import type { Repo } from "./repo";
 
 const RepoCtx = createContext<Repo | null>(null);
-export const RepoProvider = RepoCtx.Provider;
+
+/** Fornece o Repo e mantém UMA inscrição de tempo real para o app inteiro. */
+export function RepoProvider({ value, children }: { value: Repo; children: ReactNode }) {
+  const qc = useQueryClient();
+  useEffect(
+    () => value.subscribe(() => void qc.invalidateQueries({ queryKey: key(value.session.orgId) })),
+    [value, qc],
+  );
+  return <RepoCtx.Provider value={value}>{children}</RepoCtx.Provider>;
+}
 
 export function useRepo(): Repo {
   const r = useContext(RepoCtx);
@@ -26,13 +35,7 @@ const key = (orgId: string) => ["snapshot", orgId] as const;
 
 export function useSnapshot() {
   const repo = useRepo();
-  const qc = useQueryClient();
-  const q = useQuery({ queryKey: key(repo.session.orgId), queryFn: () => repo.load(), staleTime: 30_000 });
-  useEffect(
-    () => repo.subscribe(() => void qc.invalidateQueries({ queryKey: key(repo.session.orgId) })),
-    [repo, qc],
-  );
-  return q;
+  return useQuery({ queryKey: key(repo.session.orgId), queryFn: () => repo.load(), staleTime: 30_000 });
 }
 
 export function useEnriched(snapshot: Snapshot | undefined) {

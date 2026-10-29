@@ -96,10 +96,17 @@ export class SupabaseRepo implements Repo {
       timer = setTimeout(onChange, 300);
     };
     const filter = `org_id=eq.${this.session.orgId}`;
-    const ch = this.sb.channel(`org-${this.session.orgId}`);
-    for (const table of ["accounts", "visits", "opportunities", "follow_ups"])
-      ch.on("postgres_changes", { event: "*", schema: "public", table, filter }, debounced);
-    ch.subscribe();
+    // Nome único por inscrição: o supabase-js reaproveita canais com o mesmo nome, e adicionar
+    // callbacks a um canal já inscrito lança erro (derrubava o app quando o efeito rodava 2x).
+    const ch = this.sb.channel(`org-${this.session.orgId}-${crypto.randomUUID()}`);
+    try {
+      for (const table of ["accounts", "visits", "opportunities", "follow_ups"])
+        ch.on("postgres_changes", { event: "*", schema: "public", table, filter }, debounced);
+      ch.subscribe();
+    } catch (e) {
+      // Tempo real é conveniência: se falhar, o app segue funcionando com recarga ao focar a tela.
+      console.warn("Realtime indisponível", e);
+    }
     return () => {
       clearTimeout(timer);
       void this.sb.removeChannel(ch);
