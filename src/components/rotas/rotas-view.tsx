@@ -13,7 +13,7 @@ import { ACCOUNT_STATUS_LABEL, VISIT_TYPE_LABEL } from "@/lib/domain/constants";
 import { addDays, dateInTz, formatDateBR, timeInTz, zonedToIso } from "@/lib/domain/dates";
 import type { EnrichedAccount } from "@/lib/domain/enrich";
 import {
-  DEFAULT_CIRCUITY, type LatLng, type LegEstimate, type Located, geocode, googleMapsRoute, haversineKm, locate, mapsStop,
+  DEFAULT_CIRCUITY, type LatLng, type LegEstimate, type Located, geocode, stackedPoints, googleMapsRoute, haversineKm, locate, mapsStop,
   normalizeKey, optimizeOrder, planTimes, straightLegs, streetLegs, sumLegs,
 } from "@/lib/domain/geo";
 import { routeFor } from "@/lib/domain/pipeline";
@@ -83,6 +83,7 @@ export function RotasView() {
   const [busy, setBusy] = useState<string | null>(null);
   const [adjustTimes, setAdjustTimes] = useState(false);
   const [startTime, setStartTime] = useState("09:00");
+  const [progress, setProgress] = useState<string | null>(null);
 
   const route = data ? routeFor(data, session.userId, date) : undefined;
   const dayVisits = useMemo(
@@ -171,21 +172,31 @@ export function RotasView() {
     setBusy(null);
   };
 
-  const geocodeAll = async () => {
+  // Localiza em lote, respeitando 1 pedido/s do OpenStreetMap. Grava lat/lng na conta: vale para todas as rotas futuras.
+  const geocodeList = async (list: { id: string; address: string | null; neighborhood: string | null; city: string | null }[]) => {
+    if (!list.length) return;
     setBusy("geocodificando");
     let ok = 0;
-    for (const [i, s] of missingGeo.entries()) {
-      if (i) await new Promise((r) => setTimeout(r, 1100)); // regra de uso do OpenStreetMap: 1 pedido/s
-      const hit = await geocode(s.a);
+    let viaCep = 0;
+    for (const [i, a] of list.entries()) {
+      setProgress(`${i + 1}/${list.length}`);
+      if (i) await new Promise((r) => setTimeout(r, 1100));
+      const hit = await geocode(a);
       if (hit) {
         ok++;
-        await actions.updateAccount(s.a.id, { latitude: hit.lat, longitude: hit.lng, geo_precision: hit.precision });
+        if (hit.via === "cep") viaCep++;
+        await actions.updateAccount(a.id, { latitude: hit.lat, longitude: hit.lng, geo_precision: hit.precision });
       }
     }
     setBusy(null);
-    if (ok === missingGeo.length) toast.success(`${ok} endereço(s) localizados.`);
-    else toast.warning(`${ok} de ${missingGeo.length} localizados. Os demais usam o centro do bairro (aproximado).`);
+    setProgress(null);
+    const detail = viaCep ? ` (${viaCep} pelo CEP, precisão de rua)` : "";
+    if (ok === list.length) toast.success(`${ok} endereço(s) localizados${detail}.`);
+    else toast.warning(`${ok} de ${list.length} localizados${detail}. Os demais seguem no centro do bairro (aproximado).`);
   };
+  const geocodeAll = () => geocodeList(missingGeo.map((s) => s.a));
+  const baseMissing = [...enriched.values()].filter((a) => a.latitude == null && a.address?.trim());
+  const stacked = stackedPoints(stops.filter((s) => s.loc?.source === "bairro").map((s) => s.loc!));
 
   const mapsUrl = googleMapsRoute(stops.map((s) => mapsStop(s.a)).filter(Boolean) as (LatLng | string)[], origin);
 
@@ -206,7 +217,7 @@ export function RotasView() {
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Paradas" value={String(stops.length)} sub={done.length ? `${done.length} já feitas` : undefined} />
-        <Stat label="Distância" value={`${tot.km.toFixed(1)} km`} sub={plan?.source === "ruas" ? "por ruas (OSRM)" : `linha reta × ${settings.circuity}`} />
+        <Stat label="Distância" value={`${tot.km.toFixed(1)} km`} sub={stacked >= 2 ? `${stacked} paradas sem endereço localizado` : plan?.source === "ruas" ? "por ruas (OSRM)" : `linha reta × ${settings.circuity}`} />
         <Stat label="Tempo total" value={fmtMin(tot.minutes + visitMin)} sub={`${fmtMin(tot.minutes)} dirigindo + ${fmtMin(visitMin)} em visita`} />
         <Stat
           label="Rota"
@@ -243,6 +254,16 @@ export function RotasView() {
             <p className="col-span-3 text-[10px] text-slate-500">
               Usados só quando o cálculo por ruas não responde. Ficam salvos neste aparelho.
             </p>
+            {baseMissing.length ? (
+              <div className="col-span-3 flex flex-wrap items-center gap-2 border-t border-slate-800 pt-2">
+                <Button size="sm" disabled={!!busy} onClick={() => void geocodeList(baseMissing)}>
+                  <MapPin size={14} /> {busy === "geocodificando" ? `Localizando ${progress ?? ""}…` : `Localizar toda a base (${baseMissing.length})`}
+                </Button>
+                <span className="text-[10px] text-slate-500">
+                  ~{Math.ceil((baseMissing.length * 1.2) / 60)} min com a tela aberta. Grava a coordenada em cada conta para todas as rotas e o encaixe.
+                </span>
+              </div>
+            ) : null}
           </div>
         ) : null}
 
@@ -257,7 +278,7 @@ export function RotasView() {
               </Button>
               {missingGeo.length ? (
                 <Button size="sm" disabled={!!busy} onClick={() => void geocodeAll()}>
-                  <MapPin size={14} /> {busy === "geocodificando" ? "Localizando…" : `Localizar ${missingGeo.length} endereço(s)`}
+                  <MapPin size={14} /> {busy === "geocodificando" ? `Localizando ${progress ?? ""}…` : `Localizar ${missingGeo.length} endereço(s)`}
                 </Button>
               ) : null}
               {mapsUrl ? (
@@ -267,6 +288,12 @@ export function RotasView() {
                 </a>
               ) : null}
             </div>
+            {stacked >= 2 ? (
+              <p className="mb-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-200">
+                {stacked} paradas estão no mesmo ponto (centro do bairro), porque o endereço ainda não foi localizado. Entre elas a distância
+                aparece 0 e a ordem não pode ser otimizada. Toque em <b>Localizar {missingGeo.length} endereço(s)</b>: leva cerca de {Math.ceil(missingGeo.length * 1.2)} s e fica salvo na conta.
+              </p>
+            ) : null}
             {plan ? (
               <p className="mb-2 rounded-lg border border-brand-500/30 bg-brand-500/10 p-2 text-[11px] text-brand-200">
                 Ordem proposta ({plan.source === "ruas" ? "distância real por ruas" : "estimativa em linha reta corrigida; o cálculo por ruas não respondeu"}).

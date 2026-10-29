@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { googleMapsRoute, haversineKm, locate, optimizeOrder, planTimes, straightLegs } from "./geo";
+import { extractCep, googleMapsRoute, haversineKm, locate, optimizeOrder, planTimes, stackedPoints, straightLegs, streetPart } from "./geo";
 
 describe("geo", () => {
   it("haversine Campo Grande → Santa Cruz ≈ 13 km em linha reta", () => {
@@ -34,5 +34,24 @@ describe("geo", () => {
     const q = new URL(url).searchParams;
     expect(q.get("destination")).toBe("3,4");
     expect(q.get("waypoints")).toBe("1,2|Rua X, 10");
+  });
+});
+
+describe("limpeza de endereço para geocodificar (v2)", () => {
+  it("separa rua e número, tira bairro, UF, CEP e complemento", () => {
+    expect(streetPart("Av. Isabel, 331 - Santa Cruz, RJ, 23515-161")).toBe("Av. Isabel, 331");
+    expect(streetPart("R. Dom Pedro I, 66 Lj C - Santa Cruz, RJ, 23510-010")).toBe("R. Dom Pedro I, 66");
+    expect(streetPart("Av. Padre Guilherme Decaminada - Santa Cruz, RJ")).toBe("Av. Padre Guilherme Decaminada");
+    expect(extractCep("Praca Areia Branca, 8 - Santa Cruz, RJ, 23550-340")).toBe("23550340");
+    expect(extractCep("Av. Padre Guilherme Decaminada - Santa Cruz, RJ")).toBeNull();
+  });
+  it("detecta paradas empilhadas no mesmo ponto", () => {
+    const c = { lat: -22.9195, lng: -43.6845 };
+    expect(stackedPoints([c, c, c, { lat: -22.9, lng: -43.56 }])).toBe(3);
+    expect(stackedPoints([c, { lat: -22.9, lng: -43.56 }])).toBe(0);
+  });
+  it("bairros da base real têm centro (inclui Conjunto Novo Campinho)", () => {
+    for (const b of ["Campo Grande", "Santa Cruz", "Jesuítas", "Paciência", "Conjunto Campinho", "Manguariba", "Jardim Palmares", "Conjunto Novo Campinho", "Inhoaíba"])
+      expect(locate({ latitude: null, longitude: null, neighborhood: b })).not.toBeNull();
   });
 });

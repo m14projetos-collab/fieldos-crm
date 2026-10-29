@@ -21,6 +21,8 @@ export const BAIRRO_CENTROIDS: Record<string, LatLng> = {
   "inhoaiba": { lat: -22.9, lng: -43.59 },
   "manguariba": { lat: -22.895, lng: -43.65 },
   "conjunto campinho": { lat: -22.889, lng: -43.583 },
+  "conjunto novo campinho": { lat: -22.889, lng: -43.583 },
+  "palmares": { lat: -22.88, lng: -43.615 },
   "cosmos": { lat: -22.91, lng: -43.62 },
   "sepetiba": { lat: -22.97, lng: -43.7 },
   "guaratiba": { lat: -22.99, lng: -43.6 },
@@ -167,31 +169,99 @@ export async function streetLegs(pts: LatLng[], start: LatLng | null, signal?: A
 
 export interface GeocodeHit extends LatLng {
   precision: "endereco" | "rua";
+  via: "cep" | "osm";
 }
 
-/** Geocodifica um endereço no OpenStreetMap (Nominatim: no máximo 1 pedido por segundo). */
-export async function geocode(a: Pick<Account, "address" | "neighborhood" | "city">, signal?: AbortSignal): Promise<GeocodeHit | null> {
-  if (!a.address?.trim()) return null;
-  const q = [a.address, a.neighborhood, a.city ?? "Rio de Janeiro", "Brasil"].filter(Boolean).join(", ");
+/** CEP (8 dígitos) escrito no endereço, se houver. */
+export function extractCep(address: string | null | undefined): string | null {
+  const m = address?.match(/\b(\d{5})-?(\d{3})\b/);
+  return m ? m[1] + m[2] : null;
+}
+
+/**
+ * Endereço limpo para o OpenStreetMap: "Av. Isabel, 331 - Santa Cruz, RJ, 23515-161" vira "Av. Isabel, 331".
+ * Tira CEP, UF, bairro repetido e complemento de loja/sala, que fazem a busca falhar.
+ */
+export function streetPart(address: string): string {
+  return address
+    .split(" - ")[0]
+    .replace(/\b\d{5}-?\d{3}\b/g, "")
+    .replace(/\b(lj|loja|sala|sl|apto?|bloco|bl|fundos|casa)\b\.?\s*[\w-]*/gi, "")
+    .replace(/\s+,/g, ",")
+    .replace(/[,\s]+$/, "")
+    .trim();
+}
+
+/** Ponto plausível: perto do bairro informado (8 km) ou, sem bairro conhecido, dentro do município do Rio. */
+function plausible(a: Pick<Account, "neighborhood">, p: LatLng): boolean {
+  const c = a.neighborhood ? BAIRRO_CENTROIDS[normalizeKey(a.neighborhood)] : undefined;
+  if (c) return haversineKm(c, p) <= 8;
+  return p.lat < -22.7 && p.lat > -23.1 && p.lng < -43.1 && p.lng > -43.8;
+}
+
+async function getJson<T>(url: string, signal?: AbortSignal): Promise<T | null> {
   try {
-    const r = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&accept-language=pt-BR&q=${encodeURIComponent(q)}`,
-      { signal, headers: { Accept: "application/json" } },
-    );
-    if (!r.ok) return null;
-    const j = (await r.json()) as { lat: string; lon: string; addresstype?: string; type?: string }[];
-    if (!j.length) return null;
-    const hit = j[0];
-    const lat = Number(hit.lat);
-    const lng = Number(hit.lon);
-    // confere que caiu perto do bairro informado (evita homônimos em outra cidade)
-    const c = a.neighborhood ? BAIRRO_CENTROIDS[normalizeKey(a.neighborhood)] : undefined;
-    if (c && haversineKm(c, { lat, lng }) > 8) return null;
-    const precise = /^(building|house|amenity|restaurant|fast_food|cafe|bar|pub|shop|place)$/.test(hit.addresstype ?? hit.type ?? "");
-    return { lat, lng, precision: precise ? "endereco" : "rua" };
+    const r = await fetch(url, { signal, headers: { Accept: "application/json" } });
+    return r.ok ? ((await r.json()) as T) : null;
   } catch {
     return null;
   }
+}
+
+/** Coordenada do CEP (AwesomeAPI e BrasilAPI, gratuitas). No Rio, um CEP costuma ser um trecho de rua. */
+export async function geocodeCep(cep: string, signal?: AbortSignal): Promise<LatLng | null> {
+  const aw = await getJson<{ lat?: string; lng?: string }>(`https://cep.awesomeapi.com.br/json/${cep}`, signal);
+  if (aw?.lat && aw?.lng && Number(aw.lat) && Number(aw.lng)) return { lat: Number(aw.lat), lng: Number(aw.lng) };
+  const br = await getJson<{ location?: { coordinates?: { latitude?: string; longitude?: string } } }>(
+    `https://brasilapi.com.br/api/cep/v2/${cep}`, signal,
+  );
+  const c = br?.location?.coordinates;
+  if (c?.latitude && c?.longitude && Number(c.latitude) && Number(c.longitude)) return { lat: Number(c.latitude), lng: Number(c.longitude) };
+  return null;
+}
+
+/**
+ * Geocodifica um endereço: primeiro o número da rua no OpenStreetMap (mais preciso), depois o CEP.
+ * Nominatim aceita no máximo 1 pedido por segundo: quem chama em lote espera entre as contas.
+ */
+export async function geocode(a: Pick<Account, "address" | "neighborhood" | "city">, signal?: AbortSignal): Promise<GeocodeHit | null> {
+  if (!a.address?.trim()) return null;
+  const street = streetPart(a.address);
+  if (street) {
+    const params = new URLSearchParams({
+      format: "jsonv2", limit: "1", countrycodes: "br", "accept-language": "pt-BR",
+      street, city: a.city || "Rio de Janeiro", state: "Rio de Janeiro", country: "Brasil",
+    });
+    const j = await getJson<{ lat: string; lon: string; addresstype?: string; type?: string }[]>(
+      `https://nominatim.openstreetmap.org/search?${params.toString()}`, signal,
+    );
+    const hit = j?.[0];
+    if (hit) {
+      const p = { lat: Number(hit.lat), lng: Number(hit.lon) };
+      if (plausible(a, p)) {
+        const precise = /^(building|house|amenity|restaurant|fast_food|cafe|bar|pub|shop|place)$/.test(hit.addresstype ?? hit.type ?? "");
+        return { ...p, precision: precise ? "endereco" : "rua", via: "osm" };
+      }
+    }
+  }
+  const cep = extractCep(a.address);
+  if (cep) {
+    const p = await geocodeCep(cep, signal);
+    if (p && plausible(a, p)) return { ...p, precision: "rua", via: "cep" };
+  }
+  return null;
+}
+
+/** Quantas paradas caem exatamente no mesmo ponto (ex.: todas no centro do bairro). Distância entre elas sai 0. */
+export function stackedPoints(pts: LatLng[]): number {
+  const seen = new Map<string, number>();
+  for (const p of pts) {
+    const k = `${p.lat.toFixed(5)},${p.lng.toFixed(5)}`;
+    seen.set(k, (seen.get(k) ?? 0) + 1);
+  }
+  let n = 0;
+  for (const c of seen.values()) if (c > 1) n += c;
+  return n;
 }
 
 /** Link do Google Maps com a rota inteira (o app do celular abre direto na navegação). */
