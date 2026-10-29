@@ -71,6 +71,22 @@ desenvolvimento bloqueia; no celular funcionam, e se falharem o app cai para lin
 - Auditor com IA automático (Edge Function + API da Claude): **não feito**, depende de chave de API e limite de
   custo definidos pelo Michel. O prompt pronto cobre o uso manual sem custo.
 
+## Upgrade v2.0 ✅ (29/10/2026)
+- MRR em 1 clique (R$ 349/489/649 ou outro) em proposta/negociação sem valor: card do pipeline, Hoje e ficha.
+- Nome do restaurante abre a ficha 360º em Hoje, Rotas e CHAVE.
+- Funil: MQL = quente, score ≥ 40 ou morno com contato feito (decisão do Michel: o "morno" da importação não conta).
+  SQL = Qualificado, Demo/Visita, Proposta ou Negociação (oportunidade ou status). A view `vw_accounts_enriched.funnel_stage`
+  ainda usa a regra antiga; o app não lê essa coluna (calcula em `enrich.ts`).
+- Rotas: geocodificação limpa o endereço (sem CEP/UF/loja) e cai para o CEP (AwesomeAPI/BrasilAPI); aviso quando paradas
+  caem no mesmo ponto do bairro (as 16 visitas de 29/10 estavam todas no centro de Santa Cruz = 0 km); botão para localizar a base.
+- CHAVE: 7 playbooks padrão em 1 clique (sem duplicar) e "Script recomendado" na ficha (etapa + sistema atual + persona).
+- Integrações (/integracoes): WhatsApp link/Evolution/Z-API com modelos ({nome} {restaurante} {bairro} {sistema}),
+  webhooks (organizations.settings), Google Maps/Waze por aparelho, CSV/JSON com prévia. Ações em massa no CRM.
+- Migration 0011 (pg_net + gatilhos visit.checkin / proposal.sent / deal.won): testada local; aplicação em produção
+  aguardando a confirmação do Michel no conector Supabase.
+- Não validado: geocodificação e envio por API de WhatsApp com serviço real (rede bloqueada no ambiente de teste);
+  disparo real do webhook; uso no celular.
+
 ## Fase 4 — SaaS ⬜
 
 - Convites e vários usuários por org; papel `manager` vê o time, `ae` vê o próprio.
