@@ -23,6 +23,8 @@ import { PainCalculator } from "./pain-calculator";
 import { PipelinePanel } from "./pipeline-panel";
 import { RecommendedScript } from "./recommended-script";
 import { WaTemplates } from "@/components/integrations/wa-templates";
+import { CalendarButtons, EmailTools, ResearchLinks } from "@/components/integrations/contact-tools";
+import { type CalEvent, addressOf } from "@/lib/domain/links";
 
 export function AccountDrawer() {
   const { drawerAccountId, closeDrawer, openSchedule } = useUi();
@@ -43,6 +45,26 @@ export function AccountDrawer() {
   const script = acc ? (nextFu ? followUpScript(nextFu, acc, sctx, fuVisit) : cadenceScript(acc.cadence_day, acc, sctx)) : "";
   const wa = acc ? waLink(waNumber(acc), script) : null;
   const phone = acc ? (acc.phone || acc.whatsapp || "").replace(/\D/g, "") : "";
+  const nextVisit = visits.filter((v) => (v.status === "agendada" || v.status === "reagendada") && v.scheduled_at >= new Date(Date.now() - 3_600_000).toISOString())
+    .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))[0];
+  const calEvent: CalEvent | null = !acc ? null : nextVisit
+    ? {
+        uid: `visit-${nextVisit.id}`,
+        title: `Visita: ${acc.name}`,
+        start: new Date(nextVisit.scheduled_at),
+        end: new Date(new Date(nextVisit.scheduled_at).getTime() + nextVisit.duration_minutes * 60_000),
+        location: addressOf(acc) || undefined,
+        details: `${VISIT_TYPE_LABEL[nextVisit.visit_type]} · ${acc.decision_maker_name ?? "decisor a confirmar"} · ${acc.whatsapp || acc.phone || "sem telefone"}`,
+      }
+    : nextFu
+      ? {
+          uid: `fu-${nextFu.id}`,
+          title: `Follow-up: ${acc.name}`,
+          start: new Date(`${nextFu.due_date}T09:00:00-03:00`),
+          end: new Date(`${nextFu.due_date}T09:15:00-03:00`),
+          details: `${nextFu.title} · ${acc.whatsapp || acc.phone || "sem telefone"}`,
+        }
+      : null;
 
   return (
     // Desktop largo (xl): inspetor fixo à direita, sem modal, o conteúdo encolhe e segue clicável (trocar de lead troca a ficha).
@@ -103,6 +125,20 @@ export function AccountDrawer() {
                   <summary className="cursor-pointer text-[11px] font-semibold text-slate-300">💬 Outros modelos de WhatsApp</summary>
                   <div className="mt-2"><WaTemplates acc={acc} /></div>
                 </details>
+                <details className="rounded-lg bg-slate-900/60 p-2">
+                  <summary className="cursor-pointer text-[11px] font-semibold text-slate-300">📧 E-mail (Gmail, Hotmail, Outlook)</summary>
+                  <div className="mt-2"><EmailTools acc={acc} /></div>
+                </details>
+                {calEvent ? (
+                  <div className="space-y-1.5 rounded-lg bg-slate-900/60 p-2.5">
+                    <div className="text-[11px] font-semibold text-slate-300">📅 {calEvent.title.split(":")[0]} na sua agenda</div>
+                    <CalendarButtons ev={calEvent} />
+                  </div>
+                ) : null}
+                <div className="space-y-1.5">
+                  <div className="text-[11px] font-semibold text-slate-400">🔎 Pesquisar antes da visita</div>
+                  <ResearchLinks acc={acc} />
+                </div>
 
                 <section>
                   <SectionTitle>Próxima ação (follow-up)</SectionTitle>

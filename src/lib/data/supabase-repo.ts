@@ -87,7 +87,8 @@ export class SupabaseRepo implements Repo {
       p_current_system: i.currentSystem ?? null, p_segment: i.segment ?? null, p_region: i.region ?? null, p_id: i.id,
     });
     mapError(error);
-    return data as string;
+    if (typeof data !== "string" || !/^[0-9a-f]{64}$/.test(data)) throw new Error("O banco não devolveu o link. A atualização da agenda (SQL 0012) já foi aplicada?");
+    return data;
   }
 
   async scheduleVisit(i: Parameters<Repo["scheduleVisit"]>[0]) {
@@ -96,7 +97,8 @@ export class SupabaseRepo implements Repo {
       p_duration: i.durationMinutes ?? 45, p_id: i.id,
     });
     mapError(error);
-    return data as string;
+    if (typeof data !== "string" || !/^[0-9a-f]{64}$/.test(data)) throw new Error("O banco não devolveu o link. A atualização da agenda (SQL 0012) já foi aplicada?");
+    return data;
   }
 
   async updateAccount(id: string, patch: Partial<Account>) {
@@ -179,6 +181,12 @@ export class SupabaseRepo implements Repo {
     const { data, error } = await this.sb.from("organizations").update({ settings }).eq("id", this.session.orgId).select("id");
     mapError(error);
     if (!data?.length) throw new Error("Só o administrador da empresa pode alterar as integrações.");
+  }
+  async rotateCalendarFeed(): Promise<string> {
+    const { data, error } = await this.sb.rpc("rotate_calendar_feed");
+    mapError(error);
+    if (typeof data !== "string" || !/^[0-9a-f]{64}$/.test(data)) throw new Error("O banco não devolveu o link. A atualização da agenda (SQL 0012) já foi aplicada?");
+    return data;
   }
   async updateOrgName(name: string) {
     const { error } = await this.sb.from("organizations").update({ name: name.trim() }).eq("id", this.session.orgId);

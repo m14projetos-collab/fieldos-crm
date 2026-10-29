@@ -180,8 +180,9 @@ select pg_temp.assert((select accepted_at is not null from org_invites where ema
 select pg_temp.assert(
   not exists (
     select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public' and p.prokind = 'f' and has_function_privilege('anon', p.oid, 'execute')),
-  'anon sem EXECUTE em funções do public');
+    where n.nspname = 'public' and p.prokind = 'f' and has_function_privilege('anon', p.oid, 'execute')
+      and p.proname <> 'calendar_feed'),
+  'anon sem EXECUTE em funções do public (exceto calendar_feed, protegida por token)');
 select pg_temp.assert(
   not exists (select 1 from information_schema.role_table_grants where grantee = 'anon' and table_schema = 'public'),
   'anon sem permissão em tabelas e views');
@@ -376,5 +377,29 @@ select public.log_visit_outcome(:'visw3', 'interesse_confirmado');
 reset role;
 select pg_temp.assert((select count(*) from net.calls) = 0, 'URL http não dispara');
 -- (o revoke de emit_webhook para authenticated é conferido no Supabase real: aqui o topo do teste dá grant em tudo)
+
+
+-- ===================== Assinatura de agenda (.ics) =====================
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+select public.rotate_calendar_feed() as feed_tok \gset
+select pg_temp.assert(length(:'feed_tok') = 64, 'token de agenda com 64 hex');
+select public.schedule_visit(:'accw', now() + interval '1 day', 'retorno') as visfeed \gset
+reset role;
+set role anon;
+select pg_temp.assert((select count(*) from public.calendar_feed(:'feed_tok') where id = :'visfeed') = 1, 'anon lê a agenda com o token');
+select pg_temp.assert((select count(*) from public.calendar_feed('0000000000000000000000000000000000000000000000000000000000000000')) = 0, 'token errado não lê nada');
+select pg_temp.assert((select count(*) from public.calendar_feed('x'' or 1=1 --')) = 0, 'token malformado não lê nada');
+reset role;
+set role authenticated;
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000b', false);
+select pg_temp.assert((select count(*) from public.calendar_feeds) = 0, 'outro usuário não vê o hash do token de A');
+select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-00000000000a', false);
+select public.rotate_calendar_feed() as feed_tok2 \gset
+reset role;
+set role anon;
+select pg_temp.assert((select count(*) from public.calendar_feed(:'feed_tok')) = 0, 'gerar novo token invalida o antigo');
+select pg_temp.assert((select count(*) from public.calendar_feed(:'feed_tok2')) >= 1, 'token novo funciona');
+reset role;
 
 select pg_temp.assert(true, 'TODOS OS CENÁRIOS PASSARAM');

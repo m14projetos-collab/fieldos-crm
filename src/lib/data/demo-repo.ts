@@ -134,6 +134,9 @@ export class DemoRepo implements Repo {
   async updateOrgName(name: string) {
     this.session = { ...this.session, orgName: `${name.trim()} (demo)` };
   }
+  async rotateCalendarFeed(): Promise<string> {
+    throw new Error("A assinatura de agenda funciona só com login (dados reais).");
+  }
   async loadOrgSettings(): Promise<OrgSettings> {
     try {
       return JSON.parse(localStorage.getItem(`${KEY}:settings`) ?? "{}") as OrgSettings;

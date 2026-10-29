@@ -5,6 +5,7 @@ import { FollowUpRow } from "./follow-up-row";
 import { QuickMrr, needsMrr } from "@/components/crm/quick-mrr";
 import { LeadControls, MrrChips, SystemSelect, TempPill } from "@/components/crm/lead-controls";
 import Link from "next/link";
+import { DayIcsButton, visitEvents } from "@/components/integrations/contact-tools";
 import { Badge, Button, Card, SectionTitle, cn, scoreColor } from "@/components/ui/primitives";
 import { preVisitScript, waLink, waNumber } from "@/lib/domain/cadence";
 import { ACCOUNT_STATUS_LABEL, OUTCOME_LABEL, PERSONA_LABEL, VISIT_TYPE_LABEL } from "@/lib/domain/constants";
@@ -111,7 +112,12 @@ export function HojeView() {
 
           {/* Agenda do dia */}
           <Card>
-            <SectionTitle right={<Link href="/rotas" className="text-[11px] font-semibold text-brand-300 hover:underline">Otimizar rota →</Link>}>
+            <SectionTitle right={
+              <span className="flex items-center gap-2">
+                <DayIcsButton date={t.today} className="px-2 py-1 text-[11px]"
+                  events={visitEvents(t.todayVisits.filter((v) => v.status !== "realizada" && v.status !== "cancelada"), (id) => enriched.get(id), (v) => VISIT_TYPE_LABEL[v.visit_type])} />
+                <Link href="/rotas" className="text-[11px] font-semibold text-brand-300 hover:underline">Otimizar rota →</Link>
+              </span>}>
               Agenda de hoje ({t.todayVisits.length})
             </SectionTitle>
             {t.todayVisits.length ? (

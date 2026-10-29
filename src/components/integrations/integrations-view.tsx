@@ -13,6 +13,7 @@ import {
 } from "@/lib/domain/integrations";
 import type { Account } from "@/lib/domain/types";
 import { sendViaApi } from "./wa-templates";
+import { CalendarCard, EmailCard, LinksCard, RecipesCard } from "./integrations-more";
 
 const field = "w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:border-brand-500 focus:outline-none disabled:opacity-60";
 
@@ -26,14 +27,18 @@ export function IntegrationsView() {
       <div>
         <h1 className="text-xl font-extrabold text-white">Integrações & automações</h1>
         <p className="text-xs text-slate-400">
-          WhatsApp, webhooks para Make/n8n/Zapier, app de navegação e importação de planilhas.
+          WhatsApp, e-mail (Gmail, Hotmail, Outlook), agenda, links padrão, webhooks para Make/n8n/Zapier, navegação e planilhas. Tudo grátis.
           {!isAdmin ? " Só o administrador altera WhatsApp e webhooks; você pode usar navegação e CSV." : ""}
         </p>
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <WhatsAppCard settings={settings} isAdmin={isAdmin} />
+        <EmailCard settings={settings} isAdmin={isAdmin} />
+        <LinksCard settings={settings} isAdmin={isAdmin} />
+        <CalendarCard />
         <WebhookCard settings={settings} isAdmin={isAdmin} />
         <NavigationCard />
+        <RecipesCard />
         <CsvCard />
       </div>
     </div>

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { create } from "zustand";
 import { DEFAULT_TEMPLATES, type NavApp, type OrgSettings, type WaTemplate, isSafeWebhookUrl } from "@/lib/domain/integrations";
+import { DEFAULT_EMAIL_TEMPLATES, type EmailApp, type EmailTemplate } from "@/lib/domain/links";
 import { useRepo } from "./hooks";
 
 const key = (orgId: string) => ["org-settings", orgId] as const;
@@ -55,6 +56,37 @@ export const useNavApp = create<{ app: NavApp; setApp: (a: NavApp) => void; hydr
       localStorage.setItem(NAV_KEY, app);
     } catch {
       /* sem armazenamento: vale só nesta sessão */
+    }
+    set({ app });
+  },
+}));
+
+/** Modelos de e-mail da org; sem nenhum salvo, usa os padrão. */
+export function useEmailTemplates(): EmailTemplate[] {
+  const { data } = useOrgSettings();
+  const t = data?.email?.templates;
+  return t?.length ? t : DEFAULT_EMAIL_TEMPLATES;
+}
+
+// App de e-mail: preferência de cada aparelho (um usa Gmail, outro Hotmail).
+const MAIL_KEY = "fieldos:email-app";
+const MAIL_APPS: EmailApp[] = ["gmail", "outlook", "outlook365", "mailto"];
+const readMail = (): EmailApp => {
+  try {
+    const v = localStorage.getItem(MAIL_KEY) as EmailApp | null;
+    return v && MAIL_APPS.includes(v) ? v : "gmail";
+  } catch {
+    return "gmail";
+  }
+};
+export const useEmailApp = create<{ app: EmailApp; setApp: (a: EmailApp) => void; hydrate: () => void }>((set) => ({
+  app: "gmail",
+  hydrate: () => set({ app: readMail() }),
+  setApp: (app) => {
+    try {
+      localStorage.setItem(MAIL_KEY, app);
+    } catch {
+      /* sem armazenamento */
     }
     set({ app });
   },

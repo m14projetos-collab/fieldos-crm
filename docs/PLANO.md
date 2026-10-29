@@ -130,3 +130,10 @@ desenvolvimento bloqueia; no celular funcionam, e se falharem o app cai para lin
 - CRM: ⚡ Visão Rápida, Tabela Completa (temperatura e sistema inline), Pipeline & Prospecção, Regiões, Recuperação (+15d/+30d sem contato) & Onboarding pós-venda + perdidos.
 - Ficha 360º: no desktop ≥1280px vira painel fixo à direita (não modal; o conteúdo encolhe via container queries); aba lateral reabre a última ficha.
 - CHAVE: aba Ancoragem de dor (simulação sem lead; salva no card com lead). Rotas: "Otimizar ordem (Auto-Cluster)" + malha geográfica SVG. Performance: barras em gradiente e MRR por bairro.
+
+## Integrações gratuitas (29/10/2026)
+- `lib/domain/links.ts`: rascunho de e-mail em 1 clique (Gmail, Outlook.com/Hotmail, Microsoft 365, mailto), modelos com `advance_to` (a conta só avança, nunca volta), Google Agenda/Outlook por link, `.ics` (RFC 5545, lembrete 30 min), pesquisa rápida (Google, avaliações no Maps, iFood, Instagram, Drive, Meet).
+- Ficha: 📧 E-mail, 📅 próxima visita/follow-up na agenda, 🔎 pesquisa. Cards (LeadControls): botão 📧 com o modelo da etapa. Hoje e Rotas: "Agenda (.ics)" do dia.
+- Integrações: modelos de e-mail, links padrão ({link_agenda}, {link_proposta}, pasta do Drive), assinatura de agenda e receitas Make/n8n.
+- Migration 0012: `calendar_feeds` (só hash do token), `rotate_calendar_feed()`, `calendar_feed(token)` (única função liberada ao anon) e e-mail no payload do webhook. Rota `/api/agenda/[token].ics`.
+- Fora por decisão: ler/registrar e-mails do Gmail automaticamente exige OAuth com escopo restrito do Google (verificação + auditoria de segurança paga); fica para quando houver backend dedicado.

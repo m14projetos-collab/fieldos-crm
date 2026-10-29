@@ -13,7 +13,7 @@ import { QuickLogDialog } from "@/components/quicklog/quick-log-dialog";
 import { Button, cn } from "@/components/ui/primitives";
 import { DemoRepo } from "@/lib/data/demo-repo";
 import { useRepo } from "@/lib/data/hooks";
-import { useNavApp } from "@/lib/data/settings";
+import { useEmailApp, useNavApp } from "@/lib/data/settings";
 import { useUi } from "@/lib/ui-store";
 
 const NAV = [
@@ -34,6 +34,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isSupabase = repo.session.mode === "supabase";
   const hydrateNav = useNavApp((s) => s.hydrate);
   useEffect(() => hydrateNav(), [hydrateNav]);
+  const hydrateMail = useEmailApp((x) => x.hydrate);
+  useEffect(() => hydrateMail(), [hydrateMail]);
   const drawerOpen = useUi((s) => !!s.drawerAccountId);
 
   useEffect(() => {

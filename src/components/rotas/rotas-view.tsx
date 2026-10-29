@@ -1,4 +1,5 @@
 "use client";
+import { DayIcsButton, visitEvents } from "@/components/integrations/contact-tools";
 // Rotas: o dia de campo em ordem, com KM/tempo e fonte da distância. A rota guarda só logística
 // (ordem, KM, tempo); endereço e bairro continuam vindo da conta.
 import {
@@ -295,6 +296,7 @@ export function RotasView() {
                   <Navigation size={14} /> Abrir no Google Maps
                 </a>
               ) : null}
+              <DayIcsButton date={date} events={visitEvents(stops.map((x) => x.v), (id) => enriched.get(id), (v) => VISIT_TYPE_LABEL[v.visit_type])} />
               {navApp === "waze" && stops[0] && navLink("waze", stops[0].a) ? (
                 <a href={navLink("waze", stops[0].a)!} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/15 px-2.5 py-1.5 text-xs font-semibold text-sky-300 hover:bg-sky-500/25">

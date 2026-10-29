@@ -10,6 +10,7 @@ import { ACCOUNT_STATUS_LABEL, MRR_SUGGESTIONS } from "@/lib/domain/constants";
 import type { EnrichedAccount } from "@/lib/domain/enrich";
 import type { AccountStatus, Interest, Opportunity, Visit } from "@/lib/domain/types";
 import { useUi } from "@/lib/ui-store";
+import { QuickEmail } from "@/components/integrations/contact-tools";
 
 export const STAGE_PILLS: { status: AccountStatus; label: string }[] = [
   { status: "novo_lead", label: "Novo Lead" },
@@ -147,6 +148,7 @@ export function LeadControls({
             <MessageCircle size={13} /> WA
           </a>
         ) : null}
+        <QuickEmail acc={acc} />
         <Button size="sm" variant="warn" onClick={() => void checkIn()}><CalendarCheck size={13} /> Check-in</Button>
         <Button size="sm" onClick={() => openDrawer(acc.id)}><PanelRightOpen size={13} /> Ficha 360º</Button>
       </div>

@@ -37,6 +37,8 @@ export interface Repo {
   // v2: integrações (organizations.settings; só admin grava)
   loadOrgSettings(): Promise<OrgSettings>;
   saveOrgSettings(settings: OrgSettings): Promise<void>;
+  /** gera (ou troca) o token da assinatura de agenda deste usuário; o anterior para de funcionar */
+  rotateCalendarFeed(): Promise<string>;
   /** Avisa quando outra aba/dispositivo mudou algo. Retorna o unsubscribe. */
   subscribe(onChange: () => void): () => void;
 }

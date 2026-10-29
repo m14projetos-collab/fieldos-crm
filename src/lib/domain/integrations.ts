@@ -1,6 +1,7 @@
 // Integrações: modelos de WhatsApp com variáveis, webhooks de saída, app de navegação e CSV.
 // Tudo puro (testável). A configuração da org fica em organizations.settings (jsonb, só admin altera).
 import type { Account } from "./types";
+import type { EmailTemplate, LinkSettings } from "./links";
 
 // ---------------------------------------------------------------------------
 // Configuração da org
@@ -28,6 +29,10 @@ export interface OrgSettings {
     templates: WaTemplate[];
   };
   webhook?: { enabled: boolean; url: string; events: WebhookEvent[] };
+  /** modelos de e-mail da org (o app de e-mail é preferência de cada aparelho) */
+  email?: { templates: EmailTemplate[] };
+  /** links padrão: agendamento (Calendly/Cal.com/Google), proposta, pasta no Drive */
+  links?: LinkSettings;
 }
 
 export const TEMPLATE_VARS = ["{nome}", "{restaurante}", "{bairro}", "{sistema}"] as const;
