@@ -8,7 +8,7 @@ Legenda: ✅ feito e validado · 🟡 escrito, falta validar no ambiente real ·
 
 ## Fase 0 — Fundação de dados ✅
 
-Entregue: 5 migrations em `supabase/migrations/`, testes em `supabase/tests/`.
+Entregue: 6 migrations em `supabase/migrations/`, testes em `supabase/tests/`.
 
 Critérios de aceite:
 - ✅ Tabelas accounts, visits, routes, opportunities, follow_ups, goals, daily_logs, campaigns, playbooks com `org_id`.
@@ -18,7 +18,11 @@ Critérios de aceite:
 - ✅ Score, próxima melhor ação, completude e funil calculados em view (`vw_accounts_enriched`), sem digitação.
 - ✅ Metas com "realizado" calculado (`vw_goal_progress`), nunca digitado.
 - ✅ Ações rápidas atômicas em RPC: `log_visit_outcome`, `complete_follow_up`, `create_lead`, `schedule_visit`.
-- 🟡 Aplicado num projeto Supabase real (falta o projeto; validado em Postgres 16 local com stub de `auth`).
+- ✅ Aplicado no Supabase real (`tdvefdpnfglomxfafcib`, Postgres 17) em 2026-10-29: 11 tabelas com RLS, 13 policies,
+  2 views, realtime em 4 tabelas.
+- ✅ Security Advisor: corrigidos search_path mutável (9 funções) e funções executáveis por visitante sem login
+  (migration 0006). Ficam 3 avisos intencionais: `current_org_id`, `org_today` e `create_organization` são
+  SECURITY DEFINER chamáveis por usuário logado (o RLS e o onboarding dependem disso).
 
 ## Fase 1 — Comando "Hoje" + Quick Log + Gaveta 360º + Command Palette ✅ (modo demo) / 🟡 (Supabase)
 

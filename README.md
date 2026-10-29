@@ -18,6 +18,11 @@ regras de negócio do banco. "Restaurar dados de exemplo" fica na barra lateral.
 
 ## Ligar ao Supabase (plano gratuito)
 
+> Projeto atual: `tdvefdpnfglomxfafcib` (fieldos-crm). As 6 migrations **já foram aplicadas** em 2026-10-29
+> pelo conector do Supabase; pule para o passo 3. Como foram aplicadas pelo conector, as versões no histórico
+> remoto não batem com os nomes dos arquivos: **não rode `supabase db push` nesse projeto** sem antes alinhar
+> com `supabase migration repair` (senão a CLI tenta recriar as tabelas e falha).
+
 1. Crie um projeto no Supabase (ex.: `fieldos-crm`).
 2. Aplique as migrations, em ordem:
    - com a CLI: `npx supabase link --project-ref <ref>` e depois `npx supabase db push`; ou
